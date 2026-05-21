@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI 摄影评价系统</title>
+
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+    <div class="container">
+
+        <header class="hero">
+            <h1>AI 摄影评价系统</h1>
+            <p>
+                基于 Kimi Vision API 的专业摄影分析工具
+            </p>
+        </header>
+
+        <!-- ========================= -->
+        <!-- Upload Panel -->
+        <!-- ========================= -->
+
+        <section class="panel">
+
+            <div class="form-group">
+                <label>Moonshot API Key</label>
+                <input type="password" id="apiKey" placeholder="请输入你的 Moonshot API Key" />
+            </div>
+
+            <div class="form-group">
+                <label>模型名称</label>
+                <input type="text" id="modelName" value="kimi-k2.6" />
+            </div>
+
+            <div class="form-group">
+                <label>上传摄影作品</label>
+
+                <div class="upload-box" id="uploadBox">
+                    <input type="file" id="imageInput" accept="image/*" hidden />
+
+                    <button id="uploadBtn">
+                        选择图片
+                    </button>
+
+                    <p>
+                        支持 JPG / PNG / WEBP
+                    </p>
+                </div>
+            </div>
+
+            <div class="preview-wrapper">
+                <img id="previewImage" />
+            </div>
+
+            <button id="analyzeBtn" class="analyze-btn">
+                开始 AI 分析
+            </button>
+
+        </section>
+
+        <!-- ========================= -->
+        <!-- Loading -->
+        <!-- ========================= -->
+
+        <section id="loadingSection" class="loading-section hidden">
+            <div class="loader"></div>
+            <p>AI 正在分析摄影作品，请稍候...</p>
+        </section>
+
+        <!-- ========================= -->
+        <!-- Result -->
+        <!-- ========================= -->
+
+        <section id="resultSection" class="result-section hidden">
+
+            <div class="summary-card">
+                <div>
+                    <h2 id="photoType"></h2>
+                    <p id="overallSummary"></p>
+                </div>
+
+                <div class="overall-score-wrapper">
+                    <div class="overall-score" id="overallScore">
+                        0
+                    </div>
+                    <span>Overall</span>
+                </div>
+            </div>
+
+            <!-- Styles -->
+            <div class="styles-block">
+                <h3>摄影风格</h3>
+                <div id="styleTags" class="tag-container"></div>
+            </div>
+
+            <!-- Scores -->
+            <div class="score-grid" id="scoreGrid"></div>
+
+            <!-- Analysis Cards -->
+            <div id="analysisContainer"></div>
+
+            <!-- Advanced -->
+            <div class="advanced-card">
+                <h2>高级视觉分析</h2>
+
+                <div class="advanced-grid" id="advancedGrid"></div>
+            </div>
+
+            <!-- Final Verdict -->
+            <div class="final-card">
+                <h2>最终评价</h2>
+                <p id="finalVerdict"></p>
+            </div>
+
+        </section>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
