@@ -554,7 +554,7 @@ analyzeBtn.addEventListener("click", async () => {
             },
             body: JSON.stringify({
                 model: modelName,
-                temperature: 0.5,
+                temperature: 1,
                 response_format: { type: "json_object" },
                 messages: [
                     { role: "system", content: systemPrompt },
