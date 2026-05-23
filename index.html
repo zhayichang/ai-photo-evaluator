@@ -2,30 +2,32 @@
 <html lang="zh-CN">
 
 <head>
-    <link rel="icon"
-        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📷</text></svg>">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 摄影评价</title>
     <link rel="stylesheet" href="style.css">
-    <base target="_blank">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📷</text></svg>">
 </head>
 
 <body>
+
     <div class="app-container">
+
         <!-- Header -->
         <header class="app-header">
             <h1>AI 摄影评价</h1>
             <p class="subtitle">AI 驱动的专业视觉分析</p>
         </header>
+
         <!-- Settings Panel -->
         <section class="card settings-card">
             <div class="form-row api-key-row">
                 <div class="form-group">
-                    <label for="apiKey">API Key（可选）</label>
-                    <input type="password" id="apiKey" placeholder="留空则使用默认服务" autocomplete="off">
+                    <label for="apiKey">API Key</label>
+                    <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
                     <small style="color: var(--text-secondary); font-size: 12px; margin-top: 4px; display: block;">
-                        留空将使用默认服务，输入后优先使用你自己的 Key
+                        请输入你自己的 API Key，分析将直连 AI 服务商
                     </small>
                 </div>
             </div>
@@ -88,7 +90,7 @@
                     </svg>
                 </div>
                 <p class="upload-title">点击或拖拽上传图片</p>
-                <p class="upload-hint">支持 JPG、PNG、WebP，最大 20MB</p>
+                <p class="upload-hint">支持 JPG、PNG、WebP，建议小于 5MB</p>
             </div>
 
             <!-- Upload Loading -->
@@ -127,7 +129,6 @@
             <p class="loading-text" id="loadingText">正在发现照片的美好...</p>
             <p class="loading-sub" id="loadingSub">AI 正在为你寻找照片中的闪光点</p>
 
-            <!-- 进度条放在文字轮播位置 -->
             <div class="loading-progress-track" id="loadingProgressTrack">
                 <div class="loading-progress-fill" id="loadingProgress"></div>
             </div>

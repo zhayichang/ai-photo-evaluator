@@ -22,9 +22,9 @@ let loadingStageInterval = null;
 let loadingProgressInterval = null;
 
 // =========================================
-// 请求超时时间：55 秒（0.9 分钟）
+// 请求超时时间：300 秒（5 分钟）
 // =========================================
-const REQUEST_TIMEOUT_MS = 55000;
+const REQUEST_TIMEOUT_MS = 300000;
 
 // =========================================
 // Prompts
@@ -226,8 +226,8 @@ const USER_PROMPT_BEGINNER = `
 
 const MODELS = {
     moonshot: [
-        { value: "kimi-k2.5", label: "kimi-k2.5" },
         { value: "kimi-k2.6", label: "kimi-k2.6" },
+        { value: "kimi-k2.5", label: "kimi-k2.5" },
         { value: "moonshot-v1-8k-vision-preview", label: "moonshot-v1-8k-vision" },
         { value: "moonshot-v1-32k-vision-preview", label: "moonshot-v1-32k-vision" },
         { value: "moonshot-v1-128k-vision-preview", label: "moonshot-v1-128k-vision" }
@@ -290,7 +290,7 @@ document.querySelectorAll(".mode-card").forEach(card => {
 });
 
 // =========================================
-// Upload & Drag-Drop
+// Upload & Drag-Drop (with compression)
 // =========================================
 
 function handleFile(file) {
@@ -305,9 +305,9 @@ function handleFile(file) {
     uploadLoading.classList.remove("hidden");
     previewContainer.classList.add("hidden");
 
-    // 大于 2MB 自动压缩
-    if (file.size > 2 * 1024 * 1024) {
-        compressImage(file, 1200, 0.8)
+    // 大于 20MB 自动压缩
+    if (file.size > 20 * 1024 * 1024) {
+        compressImage(file, 2000, 0.92)
             .then(compressedDataUrl => {
                 selectedFile = dataUrlToFile(compressedDataUrl, file.name);
                 previewImage.src = compressedDataUrl;
@@ -343,11 +343,11 @@ function compressImage(file, maxWidth, quality) {
     return new Promise((resolve, reject) => {
         const img = new Image();
         const url = URL.createObjectURL(file);
-
+        
         img.onload = () => {
             URL.revokeObjectURL(url);
             let { width, height } = img;
-
+            
             if (width > maxWidth || height > maxWidth) {
                 if (width > height) {
                     height = Math.round(height * maxWidth / width);
@@ -357,22 +357,22 @@ function compressImage(file, maxWidth, quality) {
                     height = maxWidth;
                 }
             }
-
+            
             const canvas = document.createElement("canvas");
             canvas.width = width;
             canvas.height = height;
             const ctx = canvas.getContext("2d");
             ctx.drawImage(img, 0, 0, width, height);
-
+            
             const dataUrl = canvas.toDataURL("image/jpeg", quality);
             resolve(dataUrl);
         };
-
+        
         img.onerror = () => {
             URL.revokeObjectURL(url);
             reject(new Error("图片加载失败"));
         };
-
+        
         img.src = url;
     });
 }
@@ -474,7 +474,7 @@ function stopLoadingAnimation() {
 }
 
 // =========================================
-// Analyze
+// Analyze (direct API call with user key)
 // =========================================
 
 analyzeBtn.addEventListener("click", async () => {
@@ -482,15 +482,13 @@ analyzeBtn.addEventListener("click", async () => {
     const modelName = document.getElementById("modelName").value.trim();
     const provider = providerSelect.value;
 
-    if (!selectedFile) {
-        alert("请先上传图片");
+    if (!apiKey) {
+        alert("请输入 API Key");
+        document.getElementById("apiKey").focus();
         return;
     }
-
-    // OpenAI 必须自带 Key
-    if (provider === "openai" && !apiKey) {
-        alert("使用 OpenAI 模型需要输入你自己的 API Key");
-        document.getElementById("apiKey").focus();
+    if (!selectedFile) {
+        alert("请先上传图片");
         return;
     }
 
@@ -529,90 +527,44 @@ analyzeBtn.addEventListener("click", async () => {
         startStageRotation();
 
         const imageBase64 = await fileToBase64(selectedFile);
-        let data;
+        const endpoint = API_ENDPOINTS[provider] || API_ENDPOINTS.moonshot;
 
-        if (apiKey) {
-            // ===== 用户自带 Key：直连 AI 服务商 =====
-            const endpoint = API_ENDPOINTS[provider] || API_ENDPOINTS.moonshot;
-
-            const response = await fetch(endpoint, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({
-                    model: modelName,
-                    temperature: 1,
-                    response_format: { type: "json_object" },
-                    messages: [
-                        { role: "system", content: systemPrompt },
-                        {
-                            role: "user",
-                            content: [
-                                { type: "image_url", image_url: { url: imageBase64 } },
-                                { type: "text", text: userPrompt }
-                            ]
-                        }
-                    ]
-                }),
-                signal: controller.signal
-            });
-
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                let errDetail = `HTTP ${response.status}`;
-                try {
-                    const errBody = await response.json();
-                    errDetail = errBody.error?.message || errBody.error || errDetail;
-                } catch (_) { /* 忽略非 JSON 错误响应 */ }
-                throw new Error(`API 错误：${errDetail}`);
-            }
-
-            data = await response.json();
-
-        } else {
-            // ===== 使用默认服务：走 Vercel =====
-            const WORKER_URL = "https://ai-photo-evaluator.vercel.app";
-
-            const response = await fetch(`${WORKER_URL}/api/analyze`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    provider: provider,
-                    payload: {
-                        model: modelName,
-                        temperature: 1,
-                        response_format: { type: "json_object" },
-                        messages: [
-                            { role: "system", content: systemPrompt },
-                            {
-                                role: "user",
-                                content: [
-                                    { type: "image_url", image_url: { url: imageBase64 } },
-                                    { type: "text", text: userPrompt }
-                                ]
-                            }
+        const response = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: modelName,
+                temperature: 1,
+                response_format: { type: "json_object" },
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    {
+                        role: "user",
+                        content: [
+                            { type: "image_url", image_url: { url: imageBase64 } },
+                            { type: "text", text: userPrompt }
                         ]
                     }
-                }),
-                signal: controller.signal
-            });
+                ]
+            }),
+            signal: controller.signal
+        });
 
-            clearTimeout(timeoutId);
+        clearTimeout(timeoutId);
 
-            if (!response.ok) {
-                let errDetail = `HTTP ${response.status}`;
-                try {
-                    const errBody = await response.json();
-                    errDetail = errBody.error || errDetail;
-                } catch (_) { /* 忽略 */ }
-                throw new Error(`代理服务错误：${errDetail}`);
-            }
-
-            data = await response.json();
+        if (!response.ok) {
+            let errDetail = `HTTP ${response.status}`;
+            try {
+                const errBody = await response.json();
+                errDetail = errBody.error?.message || errBody.error || errDetail;
+            } catch (_) { /* 忽略非 JSON 错误响应 */ }
+            throw new Error(`API 错误：${errDetail}`);
         }
+
+        const data = await response.json();
 
         // 解析 AI 返回的 JSON
         const rawContent = data.choices?.[0]?.message?.content;
@@ -647,7 +599,7 @@ analyzeBtn.addEventListener("click", async () => {
         } else if (error.message.includes('API 错误') || error.message.includes('HTTP')) {
             userMsg = `🔌 ${error.message}\n\n常见原因：\n• 401：API Key 无效或已过期\n• 429：请求太频繁或额度用尽\n• 500：AI 服务商内部错误\n\n建议检查 API Key 或稍后重试`;
         } else if (error.message.includes('fetch') || error.message.includes('网络') || error.message.includes('Failed')) {
-            userMsg = "🌐 网络连接失败\n\n无法连接到 AI 服务或代理服务器，请检查网络后重试。";
+            userMsg = "🌐 网络连接失败\n\n无法连接到 AI 服务，请检查网络后重试。";
         } else {
             userMsg = `❌ 分析失败：${error.message}`;
         }
