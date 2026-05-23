@@ -7,6 +7,8 @@ const uploadLoading = document.getElementById("uploadLoading");
 const analyzeBtn = document.getElementById("analyzeBtn");
 const analyzeBtnText = document.getElementById("analyzeBtnText");
 const dropZone = document.getElementById("dropZone");
+const providerSelect = document.getElementById("provider");
+const modelSelect = document.getElementById("modelName");
 
 const loadingSection = document.getElementById("loadingSection");
 const loadingText = document.getElementById("loadingText");
@@ -18,6 +20,11 @@ let selectedFile = null;
 let currentMode = "beginner";
 let loadingStageInterval = null;
 let loadingProgressInterval = null;
+
+// =========================================
+// 请求超时时间：300 秒（5 分钟）
+// =========================================
+const REQUEST_TIMEOUT_MS = 300000;
 
 // =========================================
 // Prompts
@@ -214,6 +221,50 @@ const USER_PROMPT_BEGINNER = `
 `;
 
 // =========================================
+// Provider & Model Switcher
+// =========================================
+
+const MODELS = {
+    moonshot: [
+        { value: "kimi-k2.6", label: "kimi-k2.6" },
+        { value: "kimi-k2.5", label: "kimi-k2.5" },
+        { value: "moonshot-v1-8k-vision-preview", label: "moonshot-v1-8k-vision" },
+        { value: "moonshot-v1-32k-vision-preview", label: "moonshot-v1-32k-vision" },
+        { value: "moonshot-v1-128k-vision-preview", label: "moonshot-v1-128k-vision" }
+    ],
+    openai: [
+        { value: "gpt-4o", label: "gpt-4o" },
+        { value: "gpt-4o-mini", label: "gpt-4o-mini" },
+        { value: "gpt-5.2", label: "gpt-5.2" },
+        { value: "gpt-5.2-mini", label: "gpt-5.2-mini" }
+    ]
+};
+
+const API_ENDPOINTS = {
+    moonshot: "https://api.moonshot.cn/v1/chat/completions",
+    openai: "https://api.openai.com/v1/chat/completions"
+};
+
+function populateModels(provider) {
+    modelSelect.innerHTML = "";
+    const models = MODELS[provider] || MODELS.moonshot;
+    models.forEach((m, i) => {
+        const opt = document.createElement("option");
+        opt.value = m.value;
+        opt.textContent = m.label;
+        if (i === 0) opt.selected = true;
+        modelSelect.appendChild(opt);
+    });
+}
+
+// Initialize
+populateModels("moonshot");
+
+providerSelect.addEventListener("change", () => {
+    populateModels(providerSelect.value);
+});
+
+// =========================================
 // Mode Switcher
 // =========================================
 
@@ -324,7 +375,7 @@ function startFakeProgress() {
             if (progress > 90) progress = 90;
             bar.style.width = progress + "%";
         }
-    }, 10000);
+    }, 8000);
 }
 
 function startStageRotation() {
@@ -342,7 +393,7 @@ function startStageRotation() {
             loadingStage.textContent = stages[i];
             loadingStage.style.opacity = 1;
         }, 300);
-    }, 10000);
+    }, 8000);
 }
 
 function stopLoadingAnimation() {
@@ -365,27 +416,33 @@ function stopLoadingAnimation() {
 analyzeBtn.addEventListener("click", async () => {
     const apiKey = document.getElementById("apiKey").value.trim();
     const modelName = document.getElementById("modelName").value.trim();
+    const provider = providerSelect.value;
 
-    if (!apiKey) {
-        alert("请输入 API Key");
-        return;
-    }
     if (!selectedFile) {
         alert("请先上传图片");
         return;
     }
 
+    // OpenAI 必须自带 Key
+    if (provider === "openai" && !apiKey) {
+        alert("使用 OpenAI 模型需要输入你自己的 API Key");
+        document.getElementById("apiKey").focus();
+        return;
+    }
+
+    // 显示 Loading，隐藏旧结果
     loadingSection.classList.remove("hidden");
     resultSection.classList.add("hidden");
-    // 强制重绘 spinner，解决从隐藏状态恢复后动画丢失
+
+    // 强制重绘 spinner
     const spinner = loadingSection.querySelector('.spinner');
     if (spinner) {
         spinner.style.animation = 'none';
-        spinner.offsetHeight; // 触发重排
+        spinner.offsetHeight;
         spinner.style.animation = '';
     }
 
-    // Hide all conditional sections
+    // 隐藏所有条件区域
     document.getElementById("scoreGrid").classList.add("hidden");
     document.getElementById("analysisContainer").classList.add("hidden");
     document.getElementById("advancedCard").classList.add("hidden");
@@ -394,48 +451,120 @@ analyzeBtn.addEventListener("click", async () => {
     document.getElementById("summaryCard").classList.add("hidden");
     document.getElementById("finalCard").classList.add("hidden");
 
-    // 启动假进度条
     startFakeProgress();
-
     loadingSection.scrollIntoView({ behavior: "smooth", block: "center" });
 
     const systemPrompt = currentMode === "professional" ? SYSTEM_PROMPT_PRO : SYSTEM_PROMPT_BEGINNER;
     const userPrompt = currentMode === "professional" ? USER_PROMPT_PRO : USER_PROMPT_BEGINNER;
 
+    // 创建超时控制器
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
     try {
         startStageRotation();
 
         const imageBase64 = await fileToBase64(selectedFile);
+        let data;
 
-        const response = await fetch("https://api.moonshot.cn/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: modelName,
-                temperature: 1,
-                response_format: { type: "json_object" },
-                messages: [
-                    { role: "system", content: systemPrompt },
-                    {
-                        role: "user",
-                        content: [
-                            { type: "image_url", image_url: { url: imageBase64 } },
-                            { type: "text", text: userPrompt }
+        if (apiKey) {
+            // ===== 用户自带 Key：直连 AI 服务商 =====
+            const endpoint = API_ENDPOINTS[provider] || API_ENDPOINTS.moonshot;
+
+            const response = await fetch(endpoint, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: modelName,
+                    temperature: 1,
+                    response_format: { type: "json_object" },
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        {
+                            role: "user",
+                            content: [
+                                { type: "image_url", image_url: { url: imageBase64 } },
+                                { type: "text", text: userPrompt }
+                            ]
+                        }
+                    ]
+                }),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                let errDetail = `HTTP ${response.status}`;
+                try {
+                    const errBody = await response.json();
+                    errDetail = errBody.error?.message || errBody.error || errDetail;
+                } catch (_) { /* 忽略非 JSON 错误响应 */ }
+                throw new Error(`API 错误：${errDetail}`);
+            }
+
+            data = await response.json();
+
+        } else {
+            // ===== 使用默认服务：走 Cloudflare Worker =====
+            const WORKER_URL = "https://ai-photo-evaluator.zhayichang.workers.dev";
+
+            const response = await fetch(`${WORKER_URL}/api/analyze`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    provider: provider,
+                    payload: {
+                        model: modelName,
+                        temperature: 1,
+                        response_format: { type: "json_object" },
+                        messages: [
+                            { role: "system", content: systemPrompt },
+                            {
+                                role: "user",
+                                content: [
+                                    { type: "image_url", image_url: { url: imageBase64 } },
+                                    { type: "text", text: userPrompt }
+                                ]
+                            }
                         ]
                     }
-                ]
-            })
-        });
+                }),
+                signal: controller.signal
+            });
 
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            clearTimeout(timeoutId);
 
-        const data = await response.json();
-        const rawContent = data.choices[0].message.content;
-        const result = JSON.parse(rawContent);
+            if (!response.ok) {
+                let errDetail = `HTTP ${response.status}`;
+                try {
+                    const errBody = await response.json();
+                    errDetail = errBody.error || errDetail;
+                } catch (_) { /* 忽略 */ }
+                throw new Error(`代理服务错误：${errDetail}`);
+            }
 
+            data = await response.json();
+        }
+
+        // 解析 AI 返回的 JSON
+        const rawContent = data.choices?.[0]?.message?.content;
+        if (!rawContent) {
+            throw new Error("AI 返回内容为空");
+        }
+
+        let result;
+        try {
+            result = JSON.parse(rawContent);
+        } catch (parseErr) {
+            console.error("JSON 解析失败，原始内容：", rawContent);
+            throw new Error("AI 返回格式异常，无法解析为 JSON");
+        }
+
+        // 渲染结果
         if (currentMode === "professional") {
             renderResultProfessional(result);
         } else {
@@ -443,9 +572,28 @@ analyzeBtn.addEventListener("click", async () => {
         }
 
     } catch (error) {
-        console.error(error);
-        alert("分析失败。\n\n可能原因：\n1. API Key 无效\n2. 网络错误\n3. 返回 JSON 格式异常");
+        clearTimeout(timeoutId);
+
+        let userMsg = "分析失败";
+
+        if (error.name === 'AbortError') {
+            userMsg = "⏱ 分析超时（超过 5 分钟）\n\n可能原因：\n1. 网络连接不稳定\n2. AI 服务繁忙\n3. 图片过大\n\n建议：\n• 换一张较小的图片（建议 < 5MB）\n• 检查网络后重试\n• 稍后再试";
+        } else if (error.message.includes('JSON') || error.message.includes('格式异常')) {
+            userMsg = "📄 AI 返回格式异常\n\n可能原因：\n1. 当前模型不支持 JSON 强制输出\n2. AI 输出被截断\n3. 模型返回了额外说明文字\n\n建议：\n• 换一个模型（如 kimi-k2.5 / gpt-4o）\n• 缩短提示词后重试";
+        } else if (error.message.includes('API 错误') || error.message.includes('HTTP')) {
+            userMsg = `🔌 ${error.message}\n\n常见原因：\n• 401：API Key 无效或已过期\n• 429：请求太频繁或额度用尽\n• 500：AI 服务商内部错误\n\n建议检查 API Key 或稍后重试`;
+        } else if (error.message.includes('fetch') || error.message.includes('网络') || error.message.includes('Failed')) {
+            userMsg = "🌐 网络连接失败\n\n无法连接到 AI 服务或代理服务器，请检查网络后重试。";
+        } else {
+            userMsg = `❌ 分析失败：${error.message}`;
+        }
+
+        alert(userMsg);
+        console.error("完整错误：", error);
+
     } finally {
+        // 三重保险：无论如何都停止 loading
+        clearTimeout(timeoutId);
         stopLoadingAnimation();
         loadingSection.classList.add("hidden");
     }

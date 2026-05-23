@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 摄影评价</title>
     <link rel="stylesheet" href="style.css">
+    <base target="_blank">
 </head>
 
 <body>
@@ -14,20 +15,32 @@
 
         <!-- Header -->
         <header class="app-header">
-            <h1>摄影评价</h1>
+            <h1>AI 摄影评价</h1>
             <p class="subtitle">AI 驱动的专业视觉分析</p>
         </header>
 
         <!-- Settings Panel -->
         <section class="card settings-card">
+            <div class="form-row api-key-row">
+                <div class="form-group">
+                    <label for="apiKey">API Key（可选）</label>
+                    <input type="password" id="apiKey" placeholder="留空则使用默认服务" autocomplete="off">
+                    <small style="color: var(--text-secondary); font-size: 12px; margin-top: 4px; display: block;">
+                        留空将使用默认服务，输入后优先使用你自己的 Key
+                    </small>
+                </div>
+            </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label for="apiKey">API Key</label>
-                    <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
+                    <label for="provider">API 提供商</label>
+                    <select id="provider">
+                        <option value="moonshot" selected>Moonshot AI</option>
+                        <option value="openai">OpenAI</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label for="modelName">模型</label>
-                    <input type="text" id="modelName" value="kimi-k2.6" placeholder="kimi-k2.6">
+                    <select id="modelName"></select>
                 </div>
             </div>
         </section>
@@ -44,7 +57,7 @@
                 <div class="mode-icon">🌱</div>
                 <div class="mode-info">
                     <div class="mode-title">入门模式</div>
-                    <div class="mode-desc">轻松友好点评 · 鼓励为主</div>
+                    <div class="mode-desc">轻松友好点评 · 鼓励进步</div>
                 </div>
             </div>
             <div class="mode-card" data-mode="professional">
@@ -184,6 +197,8 @@
     </div>
 
     <script src="script.js"></script>
+    <footer class="app-footer">Designed by 猹猹</footer>
+
 </body>
 
 </html>

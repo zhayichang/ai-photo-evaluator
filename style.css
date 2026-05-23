@@ -89,8 +89,13 @@ body {
 /* Settings */
 .form-row {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 16px;
+}
+
+.form-row.api-key-row {
+    grid-template-columns: 1fr;
+    margin-bottom: 16px;
 }
 
 .form-group label {
@@ -119,6 +124,36 @@ input {
 input:focus {
     border-color: var(--accent);
     box-shadow: 0 0 0 4px var(--accent-light);
+}
+
+select {
+    width: 100%;
+    padding: 12px 36px 12px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-strong);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2386868B' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+}
+
+select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-light);
+}
+
+select option {
+    font-size: 15px;
+    padding: 8px;
 }
 
 /* Mode Selector */
@@ -820,6 +855,16 @@ input:focus {
     to {
         transform: rotate(360deg);
     }
+}
+
+/* Footer */
+.app-footer {
+    text-align: center;
+    padding: 32px 20px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    opacity: 0.7;
+    letter-spacing: 0.02em;
 }
 
 /* Responsive */
