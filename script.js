@@ -305,25 +305,89 @@ function handleFile(file) {
     uploadLoading.classList.remove("hidden");
     previewContainer.classList.add("hidden");
 
+    // 大于 2MB 自动压缩
+    if (file.size > 2 * 1024 * 1024) {
+        compressImage(file, 1200, 0.8)
+            .then(compressedDataUrl => {
+                selectedFile = dataUrlToFile(compressedDataUrl, file.name);
+                previewImage.src = compressedDataUrl;
+                uploadLoading.classList.add("hidden");
+                previewContainer.classList.remove("hidden");
+            })
+            .catch(err => {
+                console.error("压缩失败，使用原图", err);
+                useOriginalFile(file);
+            });
+    } else {
+        useOriginalFile(file);
+    }
+}
+
+function useOriginalFile(file) {
     const reader = new FileReader();
-
     reader.onload = (event) => {
-        requestAnimationFrame(() => {
-            previewImage.src = event.target.result;
-            uploadLoading.classList.add("hidden");
-            previewContainer.classList.remove("hidden");
-        });
+        previewImage.src = event.target.result;
+        uploadLoading.classList.add("hidden");
+        previewContainer.classList.remove("hidden");
     };
-
     reader.onerror = () => {
         uploadLoading.classList.add("hidden");
         uploadPlaceholder.classList.remove("hidden");
         alert("图片读取失败，请重试");
     };
+    reader.readAsDataURL(file);
+}
 
-    setTimeout(() => {
-        reader.readAsDataURL(file);
-    }, 50);
+// 图片压缩
+function compressImage(file, maxWidth, quality) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            let { width, height } = img;
+
+            if (width > maxWidth || height > maxWidth) {
+                if (width > height) {
+                    height = Math.round(height * maxWidth / width);
+                    width = maxWidth;
+                } else {
+                    width = Math.round(width * maxWidth / height);
+                    height = maxWidth;
+                }
+            }
+
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const dataUrl = canvas.toDataURL("image/jpeg", quality);
+            resolve(dataUrl);
+        };
+
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error("图片加载失败"));
+        };
+
+        img.src = url;
+    });
+}
+
+// DataURL 转 File
+function dataUrlToFile(dataUrl, filename) {
+    const arr = dataUrl.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], filename, { type: mime });
 }
 
 replaceBtn.addEventListener("click", (e) => {
