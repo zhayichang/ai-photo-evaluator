@@ -107,6 +107,87 @@ button,
     align-self: start;
 }
 
+.title-glass {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, rgba(0, 122, 255, 0.06) 0%, rgba(90, 200, 255, 0.04) 100%);
+    border: 1px solid rgba(0, 122, 255, 0.12);
+    padding: 36px 32px;
+}
+
+.glow-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(40px);
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.orb-1 {
+    width: 120px;
+    height: 120px;
+    background: var(--accent);
+    top: -30px;
+    right: 10%;
+    animation: drift 8s ease-in-out infinite;
+}
+
+.orb-2 {
+    width: 80px;
+    height: 80px;
+    background: #5AC8FA;
+    bottom: -20px;
+    left: 15%;
+    animation: drift 10s ease-in-out infinite reverse;
+}
+
+.title-content {
+    position: relative;
+    z-index: 1;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background: var(--accent-light);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 100px;
+    margin-bottom: 12px;
+    letter-spacing: 0.05em;
+    border: 1px solid rgba(0, 122, 255, 0.15);
+}
+
+.title-glass h1 {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: 8px;
+}
+
+.title-glass .subtitle {
+    font-size: 16px;
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+@keyframes drift {
+
+    0%,
+    100% {
+        transform: translate(0, 0);
+    }
+
+    33% {
+        transform: translate(15px, -10px);
+    }
+
+    66% {
+        transform: translate(-10px, 8px);
+    }
+}
+
 .placeholder-card {
     display: grid;
     grid-template-columns: 1fr;
