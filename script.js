@@ -33,7 +33,7 @@ const REQUEST_TIMEOUT_MS = 300000;
 const SYSTEM_PROMPT_PRO = `
 你是一名专业摄影评论家与视觉艺术导师。
 
-请对摄影作品进行专业、严格、结构化分析。
+请对摄影作品进行专业、客观、建设性的结构化分析。
 
 要求：
 1. 必须输出合法 JSON
@@ -43,6 +43,21 @@ const SYSTEM_PROMPT_PRO = `
 5. 分析必须具体专业
 6. 不要空泛夸奖
 7. 修改建议必须可执行
+8. 评价风格应保持专业、克制、尊重创作者
+9. 即使指出问题，也应避免尖锐、讽刺、攻击性表达
+10. 不要为了“专业感”而刻意贬低作品
+11. 优先指出作品已经成立的部分，再讨论不足
+12. 如果作品属于普通爱好者水平，应以爱好者标准评价，而不是职业比赛标准
+13. 问题分析应使用“可以进一步优化”“如果调整会更好”等建设性表达
+
+评分参考：
+- 5-6 分：普通爱好者水平，存在明显不足但可观看
+- 7 分：完成度较好，具备明确优点
+- 8 分：优秀作品，有较强审美或表达
+- 9 分：专业级作品，具有成熟个人风格
+- 10 分：极少使用，仅限极高水平作品
+
+请避免评分过低或过于极端。
 
 JSON结构如下：
 
@@ -65,35 +80,35 @@ JSON结构如下：
   "composition": {
     "analysis": "",
     "strengths": [],
-    "problems": [],
+    "improvements": [],
     "suggestions": []
   },
 
   "lighting": {
     "analysis": "",
     "strengths": [],
-    "problems": [],
+    "improvements": [],
     "suggestions": []
   },
 
   "color": {
     "analysis": "",
     "strengths": [],
-    "problems": [],
+    "improvements": [],
     "suggestions": []
   },
 
   "storytelling": {
     "analysis": "",
     "strengths": [],
-    "problems": [],
+    "improvements": [],
     "suggestions": []
   },
 
   "post_processing": {
     "analysis": "",
     "strengths": [],
-    "problems": [],
+    "improvements": [],
     "suggestions": []
   },
 
@@ -205,7 +220,7 @@ const USER_PROMPT_PRO = `
 - 摄影风格
 - 专业完成度
 
-必须指出问题。
+应客观分析仍可优化的部分，但不需要刻意寻找缺点。
 总体评价请控制在60字以内，要求精炼。
 `;
 
@@ -745,7 +760,7 @@ function renderResultProfessional(result) {
             <h2>${title}</h2>
             <p>${sectionData.analysis || ""}</p>
             ${renderListSection("优点", sectionData.strengths)}
-            ${renderListSection("问题", sectionData.problems)}
+            ${renderListSection("可优化点", sectionData.improvements)}
             ${renderListSection("修改建议", sectionData.suggestions)}
         `;
         analysisContainer.appendChild(card);
