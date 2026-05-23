@@ -10,6 +10,7 @@
         href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📷</text></svg>">
     <base target="_blank">
     <base target="_blank">
+<base target="_blank">
 </head>
 
 <body>
@@ -242,7 +243,42 @@
                         <div class="tips-list" id="tipsList"></div>
                     </div>
 
+                <!-- Share -->
+                <div class="card share-section hidden" id="shareSection">
+                    <button class="btn-primary share-btn" id="shareBtn">
+                        <span>📤 生成分享报告</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                            <polyline points="16 6 12 2 8 6" />
+                            <line x1="12" y1="2" x2="12" y2="15" />
+                        </svg>
+                    </button>
+                </div>
+
                 </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div class="share-modal hidden" id="shareModal">
+        <div class="share-modal-overlay" id="shareModalOverlay"></div>
+        <div class="share-modal-content">
+            <div class="share-modal-header">
+                <h3>📤 分享报告</h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="share-modal-body">
+                <p class="modal-desc">生成独立的 HTML 文件，包含照片与完整评价，排版精美，便于保存和分享。</p>
+                <div class="share-preview-wrapper">
+                    <div class="preview-label">预览效果</div>
+                    <div class="share-preview-frame" id="sharePreviewFrame"></div>
+                </div>
+            </div>
+            <div class="share-modal-footer">
+                <button class="btn-secondary" id="downloadShareBtn">⬇️ 下载 HTML 文件</button>
+                <button class="btn-secondary btn-copy" id="copyShareBtn">📋 复制 HTML 代码</button>
             </div>
         </div>
     </div>

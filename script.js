@@ -21,6 +21,9 @@ let currentMode = "beginner";
 let loadingStageInterval = null;
 let loadingProgressInterval = null;
 let extractedExif = null;
+let currentResult = null;
+let currentImageBase64 = null;
+let shareHTMLBlobUrl = null;
 
 // =========================================
 // 请求超时时间：300 秒（5 分钟）
@@ -853,6 +856,7 @@ analyzeBtn.addEventListener("click", async () => {
     document.getElementById("encouragementCard").classList.add("hidden");
     document.getElementById("tipsCard").classList.add("hidden");
     document.getElementById("summaryCard").classList.add("hidden");
+    document.getElementById("shareSection").classList.add("hidden");
 
     startFakeProgress();
     loadingSection.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -882,6 +886,7 @@ ISO：${extractedExif.iso || "未知"}
         startStageRotation();
 
         const imageBase64 = await fileToBase64(selectedFile);
+    currentImageBase64 = imageBase64;
         const endpoint = API_ENDPOINTS[provider] || API_ENDPOINTS.moonshot;
 
         const body = {
@@ -1109,6 +1114,9 @@ function renderResultProfessional(result) {
     setTimeout(() => {
         resultSection.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 200);
+
+    currentResult = result;
+    document.getElementById("shareSection").classList.remove("hidden");
 }
 
 // =========================================
@@ -1184,6 +1192,9 @@ function renderResultBeginner(result) {
     setTimeout(() => {
         resultSection.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 200);
+
+    currentResult = result;
+    document.getElementById("shareSection").classList.remove("hidden");
 }
 
 // =========================================
@@ -1201,3 +1212,405 @@ function renderListSection(title, items = []) {
         </div>
     `;
 }
+
+
+// =========================================
+// Share Feature
+// =========================================
+
+function escapeHtml(text) {
+    if (!text) return "";
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function generateShareHTML(result, mode, imageBase64) {
+    const isPro = mode === "professional";
+    const overallScore = result.scores?.overall ?? 0;
+    const photoType = result.photo_type || "摄影作品";
+    const summary = result.overall_summary || (isPro ? "专业分析报告" : "这是一张很有感觉的照片！");
+
+    // Build style tags
+    const styleTags = (result.photography_style || [])
+        .map(s => `<span class="tag">${escapeHtml(s)}</span>`)
+        .join("");
+
+    // Build scores
+    let scoresHTML = "";
+    if (isPro) {
+        const scoreMap = {
+            composition: "构图",
+            lighting: "光影",
+            color: "色彩",
+            storytelling: "叙事",
+            post_processing: "后期",
+            overall: "综合"
+        };
+        const scoreEntries = Object.entries(result.scores || {});
+        scoresHTML = `
+        <div class="scores-grid">
+            ${scoreEntries.map(([key, value]) => `
+                <div class="score-box">
+                    <div class="score-box-label">${scoreMap[key] || key}</div>
+                    <div class="score-box-value">${Number(value).toFixed(1)}</div>
+                    <div class="score-box-bar"><div style="width:${Math.min(Number(value) * 10, 100)}%"></div></div>
+                </div>
+            `).join("")}
+        </div>`;
+    } else {
+        scoresHTML = `
+        <div class="beginner-score">
+            <div class="score-circle">
+                <span class="score-num">${Number(overallScore).toFixed(1)}</span>
+                <span class="score-den">/10</span>
+            </div>
+            <p class="score-label">综合评分</p>
+        </div>`;
+    }
+
+    // Build analysis content
+    let analysisHTML = "";
+    if (isPro) {
+        const sections = [
+            ["composition", "构图分析", "#007AFF"],
+            ["lighting", "光影分析", "#FF9500"],
+            ["color", "色彩分析", "#FF2D55"],
+            ["storytelling", "叙事分析", "#AF52DE"],
+            ["post_processing", "后期分析", "#34C759"]
+        ];
+        analysisHTML = sections.map(([key, title, color]) => {
+            const section = result[key];
+            if (!section) return "";
+            let html = `
+            <div class="analysis-box" style="border-left-color:${color}">
+                <h3 style="color:${color}">${title}</h3>
+                <p class="analysis-text">${escapeHtml(section.analysis || "")}</p>`;
+
+            if (section.strengths?.length) {
+                html += `
+                <div class="list-section">
+                    <h4>优点</h4>
+                    <ul>${section.strengths.map(s => `<li>${escapeHtml(s)}</li>`).join("")}</ul>
+                </div>`;
+            }
+            if (section.improvements?.length) {
+                html += `
+                <div class="list-section">
+                    <h4>可优化</h4>
+                    <ul>${section.improvements.map(s => `<li>${escapeHtml(s)}</li>`).join("")}</ul>
+                </div>`;
+            }
+            if (section.suggestions?.length) {
+                html += `
+                <div class="list-section">
+                    <h4>建议</h4>
+                    <ul>${section.suggestions.map(s => `<li>${escapeHtml(s)}</li>`).join("")}</ul>
+                </div>`;
+            }
+            html += `</div>`;
+            return html;
+        }).join("");
+    } else {
+        // Collect praise and tips
+        let allPraise = [];
+        let allSuggestions = [];
+        ["composition", "lighting", "color", "storytelling", "post_processing"].forEach(key => {
+            const section = result[key];
+            if (section?.strengths) allPraise.push(...section.strengths);
+            if (section?.suggestions) allSuggestions.push(...section.suggestions);
+        });
+        allPraise = [...new Set(allPraise)].slice(0, 3);
+        allSuggestions = [...new Set(allSuggestions)].slice(0, 3);
+
+        if (allPraise.length === 0) {
+            allPraise = ["画面有清晰的视觉中心", "色彩氛围自然舒适", "整体构图有良好的节奏感"];
+        }
+        if (allSuggestions.length === 0) {
+            allSuggestions = ["多尝试不同角度拍摄", "留意自然光线的变化"];
+        }
+
+        analysisHTML = `
+        <div class="praise-box">
+            <h3>✨ 值得表扬</h3>
+            <ul>${allPraise.map(p => `<li>${escapeHtml(p)}</li>`).join("")}</ul>
+        </div>
+        <div class="tips-box">
+            <h3>💡 小建议</h3>
+            <ul>${allSuggestions.map(t => `<li>${escapeHtml(t)}</li>`).join("")}</ul>
+        </div>`;
+    }
+
+    // QR Code
+    const qrText = isPro
+        ? `AI摄影评价 | ${photoType} | 评分: ${Number(overallScore).toFixed(1)}/10 | ${summary}`
+        : `AI摄影评价 | ${summary}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrText)}`;
+
+    const now = new Date().toLocaleString("zh-CN");
+
+    return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 摄影评价报告</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: #f5f5f7;
+    color: #1d1d1f;
+    line-height: 1.6;
+    padding: 20px;
+}
+.container {
+    max-width: 720px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+    overflow: hidden;
+}
+header {
+    background: linear-gradient(135deg, #007AFF 0%, #0A84FF 100%);
+    color: white;
+    padding: 32px;
+    text-align: center;
+}
+.logo { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.date { font-size: 13px; opacity: 0.8; margin-top: 8px; }
+.photo-frame {
+    padding: 32px 32px 0;
+}
+.photo-frame img {
+    width: 100%;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    display: block;
+}
+.meta {
+    padding: 20px 32px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+.badge, .tag {
+    padding: 6px 14px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 600;
+}
+.badge {
+    background: rgba(0,122,255,0.1);
+    color: #007AFF;
+}
+.tag {
+    background: #f5f5f7;
+    color: #86868B;
+}
+.summary {
+    padding: 0 32px 24px;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+}
+.scores-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    padding: 0 32px 24px;
+}
+.score-box {
+    background: #f5f5f7;
+    border-radius: 16px;
+    padding: 16px;
+    text-align: center;
+}
+.score-box-label { font-size: 12px; color: #86868B; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.03em; }
+.score-box-value { font-size: 28px; font-weight: 700; color: #1d1d1f; margin-bottom: 8px; font-variant-numeric: tabular-nums; }
+.score-box-bar { height: 4px; background: rgba(0,0,0,0.06); border-radius: 100px; overflow: hidden; }
+.score-box-bar > div { height: 100%; background: linear-gradient(90deg, #007AFF, #5AC8FA); border-radius: 100px; }
+.beginner-score { text-align: center; padding: 24px 32px; }
+.score-circle { display: inline-flex; align-items: baseline; gap: 4px; }
+.score-num { font-size: 56px; font-weight: 800; color: #007AFF; letter-spacing: -0.03em; line-height: 1; }
+.score-den { font-size: 20px; color: #86868B; font-weight: 600; }
+.score-label { font-size: 14px; color: #86868B; margin-top: 8px; font-weight: 500; }
+.analysis-content { padding: 0 32px 24px; display: flex; flex-direction: column; gap: 16px; }
+.analysis-box {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.06);
+    border-left: 4px solid;
+    border-radius: 16px;
+    padding: 24px;
+}
+.analysis-box h3 { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
+.analysis-text { color: #555; font-size: 15px; line-height: 1.7; margin-bottom: 16px; }
+.list-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.06); }
+.list-section h4 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; color: #1d1d1f; }
+.list-section ul { list-style: none; }
+.list-section li { padding-left: 20px; position: relative; margin-bottom: 6px; font-size: 14px; color: #555; line-height: 1.5; }
+.list-section li::before { content: ""; position: absolute; left: 0; top: 8px; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.6; }
+.praise-box, .tips-box {
+    background: linear-gradient(135deg, #F2F7FF 0%, #EDF4FF 100%);
+    border: 1px solid rgba(0,122,255,0.12);
+    border-radius: 16px;
+    padding: 24px;
+}
+.tips-box { background: linear-gradient(135deg, #F0F9FF 0%, #E6F4FF 100%); }
+.praise-box h3, .tips-box h3 { font-size: 16px; font-weight: 700; margin-bottom: 12px; color: #007AFF; }
+.praise-box ul, .tips-box ul { list-style: none; }
+.praise-box li, .tips-box li {
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.8);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    font-size: 15px;
+    color: #1d1d1f;
+    line-height: 1.5;
+    border: 1px solid rgba(0,122,255,0.06);
+}
+.qr-section {
+    text-align: center;
+    padding: 32px;
+    border-top: 1px solid rgba(0,0,0,0.06);
+    background: linear-gradient(180deg, #fff 0%, #fafafa 100%);
+}
+.qr-code {
+    width: 180px;
+    height: 180px;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    background: white;
+    padding: 8px;
+}
+.qr-hint { font-size: 13px; color: #86868B; margin-top: 12px; font-weight: 500; }
+footer {
+    text-align: center;
+    padding: 24px 32px;
+    background: #f5f5f7;
+    font-size: 13px;
+    color: #86868B;
+    border-top: 1px solid rgba(0,0,0,0.04);
+}
+@media (max-width: 600px) {
+    body { padding: 0; background: #fff; }
+    .container { border-radius: 0; box-shadow: none; }
+    .scores-grid { grid-template-columns: repeat(2, 1fr); }
+    header, .photo-frame, .meta, .summary, .scores-grid, .beginner-score, .analysis-content, .qr-section, footer { padding-left: 20px; padding-right: 20px; }
+    .photo-frame { padding-top: 20px; }
+    .summary { font-size: 20px; }
+    .score-num { font-size: 48px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <div class="logo">📷 AI 摄影评价</div>
+        <div class="date">${now}</div>
+    </header>
+
+    <div class="photo-frame">
+        <img src="${imageBase64}" alt="评价照片">
+    </div>
+
+    <div class="meta">
+        ${photoType !== "摄影作品" ? `<span class="badge">${escapeHtml(photoType)}</span>` : ""}
+        ${styleTags}
+    </div>
+
+    <h1 class="summary">${escapeHtml(summary)}</h1>
+
+    ${scoresHTML}
+
+    <div class="analysis-content">
+        ${analysisHTML}
+    </div>
+
+    <div class="qr-section">
+        <img src="${qrUrl}" alt="二维码" class="qr-code">
+        <p class="qr-hint">扫码查看评价摘要</p>
+    </div>
+
+    <footer>
+        <p>由 AI 摄影评价生成 · Designed by 猹猹🦡</p>
+    </footer>
+</div>
+</body>
+</html>`;
+}
+
+// Share button events
+const shareBtn = document.getElementById("shareBtn");
+const shareModal = document.getElementById("shareModal");
+const shareModalOverlay = document.getElementById("shareModalOverlay");
+const modalClose = document.getElementById("modalClose");
+const downloadShareBtn = document.getElementById("downloadShareBtn");
+const copyShareBtn = document.getElementById("copyShareBtn");
+
+shareBtn.addEventListener("click", () => {
+    if (!currentResult || !currentImageBase64) return;
+
+    const html = generateShareHTML(currentResult, currentMode, currentImageBase64);
+
+    const blob = new Blob([html], { type: 'text/html' });
+    if (shareHTMLBlobUrl) URL.revokeObjectURL(shareHTMLBlobUrl);
+    shareHTMLBlobUrl = URL.createObjectURL(blob);
+
+    const frame = document.getElementById("sharePreviewFrame");
+    frame.innerHTML = '';
+    const iframe = document.createElement("iframe");
+    iframe.src = shareHTMLBlobUrl;
+    iframe.style.width = "100%";
+    iframe.style.height = "500px";
+    iframe.style.border = "none";
+    iframe.style.display = "block";
+    frame.appendChild(iframe);
+
+    shareModal.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+});
+
+function closeShareModal() {
+    shareModal.classList.add("hidden");
+    document.body.style.overflow = "";
+}
+
+shareModalOverlay.addEventListener("click", closeShareModal);
+modalClose.addEventListener("click", closeShareModal);
+
+downloadShareBtn.addEventListener("click", () => {
+    if (!shareHTMLBlobUrl) return;
+    const a = document.createElement("a");
+    a.href = shareHTMLBlobUrl;
+    a.download = `AI摄影评价_${Date.now()}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+});
+
+copyShareBtn.addEventListener("click", async () => {
+    if (!currentResult || !currentImageBase64) return;
+    const html = generateShareHTML(currentResult, currentMode, currentImageBase64);
+    try {
+        await navigator.clipboard.writeText(html);
+        const btn = copyShareBtn;
+        const original = btn.innerHTML;
+        btn.innerHTML = "✅ 已复制";
+        btn.style.borderColor = "#34C759";
+        btn.style.color = "#34C759";
+        setTimeout(() => {
+            btn.innerHTML = original;
+            btn.style.borderColor = "";
+            btn.style.color = "";
+        }, 2000);
+    } catch (err) {
+        alert("复制失败，请手动复制");
+    }
+});
