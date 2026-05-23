@@ -78,7 +78,7 @@ button,
 .app-container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 24px 24px 8px; 
+    padding: 24px 24px 8px;
     display: grid;
     gap: 0;
 }
@@ -104,10 +104,10 @@ button,
 
 .output-column {
     min-width: 0;
+    align-self: start;
 }
 
 .placeholder-card {
-    min-height: 530px;
     display: grid;
     grid-template-columns: 1fr;
     gap: 24px;
@@ -170,15 +170,20 @@ button,
 
 .step-mark {
     display: inline-flex;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: var(--accent);
-    color: white;
+    width: auto;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 8px;
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text-secondary);
     align-items: center;
     justify-content: center;
-    font-weight: 700;
-    font-size: 14px;
+    font-weight: 600;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
 }
 
 .step-item strong {
@@ -229,7 +234,7 @@ button,
     text-align: center;
     padding: 28px 32px;
     margin-bottom: 20px;
-    grid-column: 1 / -1;  
+    grid-column: 1 / -1;
 }
 
 .title-card h1 {
@@ -265,19 +270,27 @@ button,
 
 .step-num {
     display: inline-flex;
-    width: auto;              /* 由内容撑开 */
+    width: auto;
+    /* 由内容撑开 */
     min-width: 24px;
     height: 24px;
-    padding: 0 8px;           /* 左右留呼吸感 */
-    border-radius: 8px;       /* 圆角矩形，比正圆更 Apple */
-    background: var(--bg);    /* 用浅灰背景替代蓝色 */
-    color: var(--text-secondary);  /* 深灰文字 */
+    padding: 0 8px;
+    /* 左右留呼吸感 */
+    border-radius: 8px;
+    /* 圆角矩形，比正圆更 Apple */
+    background: var(--bg);
+    /* 用浅灰背景替代蓝色 */
+    color: var(--text-secondary);
+    /* 深灰文字 */
     align-items: center;
     justify-content: center;
-    font-weight: 600;         /* 稍细一点 */
+    font-weight: 600;
+    /* 稍细一点 */
     font-size: 12px;
-    font-variant-numeric: tabular-nums;  /* 数字等宽更整齐 */
-    border: 1px solid var(--border);     /* 加一条极淡的边线 */
+    font-variant-numeric: tabular-nums;
+    /* 数字等宽更整齐 */
+    border: 1px solid var(--border);
+    /* 加一条极淡的边线 */
     flex-shrink: 0;
 }
 
