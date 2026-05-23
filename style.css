@@ -472,8 +472,8 @@ select option {
 }
 
 .upload-placeholder {
-    min-height: 220px;
-    padding: 54px 28px;
+    min-height: 120px;
+    padding: 12px 28px 40px;
     text-align: center;
     transition: all 0.3s ease;
     cursor: pointer;
@@ -534,7 +534,7 @@ select option {
 
 /* Preview */
 .preview-container {
-    padding: 24px;
+    padding: 12px 24px 24px;
     animation: fadeIn 0.4s ease-out;
 }
 
@@ -1315,7 +1315,6 @@ select option {
         color: var(--text);
     }
 
-    .upload-placeholder,
     .step-item,
     .preview-image-wrapper,
     .loading-section {
