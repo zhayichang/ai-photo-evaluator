@@ -4,10 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 摄影评价</title>
+    <title>AI 摄影作品评价</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon"
         href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📷</text></svg>">
+<base target="_blank">
 </head>
 
 <body>
@@ -20,17 +21,48 @@
             <p class="subtitle">AI 驱动的专业视觉分析</p>
         </header>
 
-        <!-- Settings Panel -->
-        <section class="card settings-card">
-            <div class="form-row api-key-row">
-                <div class="form-group">
-                    <label for="apiKey">API Key</label>
-                    <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
-                    <small style="color: var(--text-secondary); font-size: 12px; margin-top: 4px; display: block;">
-                        请输入你自己的 API Key，分析将直连 AI 服务商
-                    </small>
+        <div class="app-layout">
+            <div class="input-column">
+                <!-- Upload Panel -->
+                <section class="card upload-card" id="dropZone">
+                    <input type="file" id="imageInput" accept="image/*" hidden>
+
+                    <div class="upload-placeholder" id="uploadPlaceholder">
+                <div class="upload-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                </div>
+                <p class="upload-title">点击或拖拽上传图片</p>
+                <p class="upload-hint">支持 JPG、PNG、WebP，建议小于 20MB</p>
+            </div>
+
+            <!-- Upload Loading -->
+            <div class="upload-loading hidden" id="uploadLoading">
+                <div class="spinner-small"></div>
+                <p class="upload-loading-text">正在读取图片...</p>
+            </div>
+
+            <div class="preview-container hidden" id="previewContainer">
+                <div class="preview-image-wrapper">
+                    <img id="previewImage" alt="预览">
+                    <button class="btn-icon replace-btn" id="replaceBtn" title="更换图片">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                    </button>
                 </div>
             </div>
+        </section>
+
+        <!-- Settings Panel -->
+        <section class="card settings-card">
             <div class="form-row">
                 <div class="form-group">
                     <label for="provider">API 提供商</label>
@@ -44,6 +76,13 @@
                     <select id="modelName"></select>
                 </div>
             </div>
+            <div class="form-row api-key-row">
+                <div class="form-group">
+                    <label for="apiKey">API Key</label>
+                    <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
+                    <small style="color: var(--text-secondary); font-size: 12px; margin-top: 4px; display: block;">
+                        请输入你自己的 API Key，分析将直连 AI 服务商
+                    </small>
         </section>
 
         <!-- Mode Selector -->
@@ -76,67 +115,72 @@
             </div>
         </section>
 
-        <!-- Upload Panel -->
-        <section class="card upload-card" id="dropZone">
-            <input type="file" id="imageInput" accept="image/*" hidden>
+        <button class="btn-primary analyze-btn" id="analyzeBtn">
+            <span id="analyzeBtnText">开始友好点评</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+            </svg>
+        </button>
 
-            <div class="upload-placeholder" id="uploadPlaceholder">
-                <div class="upload-icon">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="17 8 12 3 7 8" />
-                        <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                </div>
-                <p class="upload-title">点击或拖拽上传图片</p>
-                <p class="upload-hint">支持 JPG、PNG、WebP，建议小于 5MB</p>
             </div>
 
-            <!-- Upload Loading -->
-            <div class="upload-loading hidden" id="uploadLoading">
-                <div class="spinner-small"></div>
-                <p class="upload-loading-text">正在读取图片...</p>
-            </div>
+            <div class="output-column">
+                <section class="card placeholder-card" id="outputPlaceholder">
+                    <div class="placeholder-header">
+                        <span class="placeholder-icon">⚡</span>
+                        <div>
+                            <h3 class="section-title">等待分析</h3>
+                            <p class="placeholder-text">上传作品后，即可开始 AI 评估。这里将展示专业分析、图像亮点和改进建议。</p>
+                        </div>
+                    </div>
+                    <div class="placeholder-steps">
+                        <div class="step-item">
+                            <span class="step-mark">1</span>
+                            <div>
+                                <strong>上传照片</strong>
+                                <p>支持 JPG / PNG / WebP，推荐 20MB 以下。</p>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <span class="step-mark">2</span>
+                            <div>
+                                <strong>选择模型并输入 API Key</strong>
+                                <p>先选择 AI 提供商与模型，再填写你自己的 API Key。</p>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <span class="step-mark">3</span>
+                            <div>
+                                <strong>选择分析模式</strong>
+                                <p>入门模式更友好，专业模式更深入。</p>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <span class="step-mark">4</span>
+                            <div>
+                                <strong>点击开始</strong>
+                                <p>AI 会在右侧卡片中呈现专业分析或入门建议。</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
-            <div class="preview-container hidden" id="previewContainer">
-                <div class="preview-image-wrapper">
-                    <img id="previewImage" alt="预览">
-                    <button class="btn-icon replace-btn" id="replaceBtn" title="更换图片">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="17 8 12 3 7 8" />
-                            <line x1="12" y1="3" x2="12" y2="15" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
+                <!-- Loading -->
+                <section class="card loading-section hidden" id="loadingSection">
+                    <div class="spinner"></div>
+                    <p class="loading-text" id="loadingText">正在发现照片的美好...</p>
+                    <p class="loading-sub" id="loadingSub">AI 正在为你寻找照片中的闪光点</p>
 
-            <button class="btn-primary analyze-btn" id="analyzeBtn">
-                <span id="analyzeBtnText">开始友好点评</span>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                    <polyline points="12 5 19 12 12 19" />
-                </svg>
-            </button>
-        </section>
+                    <div class="loading-progress-track" id="loadingProgressTrack">
+                        <div class="loading-progress-fill" id="loadingProgress"></div>
+                    </div>
+                    <p class="loading-stage" id="loadingStage">正在认识这张照片...</p>
+                </section>
 
-        <!-- Loading -->
-        <section class="loading-section hidden" id="loadingSection">
-            <div class="spinner"></div>
-            <p class="loading-text" id="loadingText">正在发现照片的美好...</p>
-            <p class="loading-sub" id="loadingSub">AI 正在为你寻找照片中的闪光点</p>
-
-            <div class="loading-progress-track" id="loadingProgressTrack">
-                <div class="loading-progress-fill" id="loadingProgress"></div>
-            </div>
-            <p class="loading-stage" id="loadingStage">正在认识这张照片...</p>
-        </section>
-
-        <!-- Results -->
-        <section class="result-section hidden" id="resultSection">
+                <!-- Results -->
+                <section class="result-section hidden" id="resultSection">
 
             <!-- Summary & Score Ring (Professional only) -->
             <div class="card summary-card hidden" id="summaryCard">
@@ -165,6 +209,19 @@
             <!-- Professional: Score Grid -->
             <div class="score-grid hidden" id="scoreGrid"></div>
 
+            <!-- Professional: Strengths & Improvements -->
+            <div class="card-row">
+                <div class="card strengths-card hidden" id="strengthsCard">
+                    <h3 class="section-title">作品优点</h3>
+                    <ul class="strengths-list" id="strengthsList"></ul>
+                </div>
+
+                <div class="card improvements-card hidden" id="improvementsCard">
+                    <h3 class="section-title">可优化点</h3>
+                    <ul class="improvements-list" id="improvementsList"></ul>
+                </div>
+            </div>
+
             <!-- Professional: Analysis Cards -->
             <div class="analysis-container hidden" id="analysisContainer"></div>
 
@@ -174,25 +231,21 @@
                 <p class="encouragement-text" id="encouragementText"></p>
             </div>
 
+            <!-- Beginner: Praise -->
+            <div class="card praise-card hidden" id="praiseCard">
+                <h3 class="section-title">值得表扬</h3>
+                <ul class="praise-list" id="praiseList"></ul>
+            </div>
+
             <!-- Beginner: Tips -->
             <div class="card tips-card hidden" id="tipsCard">
                 <h3 class="section-title">小建议</h3>
                 <div class="tips-list" id="tipsList"></div>
             </div>
 
-            <!-- Advanced Analysis (Professional only) -->
-            <div class="card advanced-card hidden" id="advancedCard">
-                <h3 class="section-title">深度解析</h3>
-                <div class="advanced-grid" id="advancedGrid"></div>
-            </div>
-
-            <!-- Final Verdict -->
-            <div class="card final-card hidden" id="finalCard">
-                <h3 class="section-title" id="finalTitle">寄语</h3>
-                <p class="final-text" id="finalVerdict"></p>
-            </div>
-
         </section>
+            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>
