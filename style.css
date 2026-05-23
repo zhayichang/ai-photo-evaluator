@@ -352,13 +352,10 @@ button,
 .step-num {
     display: inline-flex;
     width: auto;
-    /* 由内容撑开 */
     min-width: 24px;
     height: 24px;
     padding: 0 8px;
-    /* 左右留呼吸感 */
     border-radius: 8px;
-    /* 圆角矩形，比正圆更 Apple */
     background: var(--bg);
     /* 用浅灰背景替代蓝色 */
     color: var(--text-secondary);
@@ -376,7 +373,7 @@ button,
 }
 
 .upload-card .step-label {
-    padding: 16px 28px 0;
+    padding: 24px 28px 0;
 }
 
 /* 按钮内的步骤序号 */
@@ -1473,221 +1470,5 @@ select option {
     .exif-tag {
         background: rgba(16, 24, 40, 0.95);
         border-color: rgba(255, 255, 255, 0.08);
-    }
-}
-
-/* ========================================
-   Share Feature Styles
-   ======================================== */
-
-.share-section {
-    padding: 20px 24px;
-    text-align: center;
-    background: linear-gradient(135deg, rgba(0,122,255,0.03) 0%, rgba(90,200,255,0.03) 100%);
-    border: 1px dashed rgba(0,122,255,0.2);
-    margin-bottom: 0;
-}
-
-.share-btn {
-    background: linear-gradient(135deg, #34C759, #30D158);
-    box-shadow: 0 4px 12px rgba(52, 199, 89, 0.2);
-    margin: 0 auto;
-    max-width: 320px;
-}
-
-.share-btn:hover {
-    background: linear-gradient(135deg, #248A3D, #28B44B);
-    box-shadow: 0 6px 16px rgba(52, 199, 89, 0.25);
-    transform: translateY(-1px);
-}
-
-.share-btn:active {
-    transform: translateY(0);
-}
-
-/* Share Modal */
-.share-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-}
-
-.share-modal.hidden {
-    display: none !important;
-}
-
-.share-modal-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0,0,0,0.4);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    animation: fadeIn 0.3s ease;
-}
-
-.share-modal-content {
-    position: relative;
-    background: var(--card);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-lg);
-    width: 100%;
-    max-width: 640px;
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
-    animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-    overflow: hidden;
-    border: 1px solid var(--border);
-}
-
-.share-modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 24px;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-}
-
-.share-modal-header h3 {
-    font-size: 18px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    margin: 0;
-}
-
-.modal-close {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: none;
-    background: var(--bg);
-    color: var(--text-secondary);
-    font-size: 20px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    line-height: 1;
-    padding-bottom: 2px;
-}
-
-.modal-close:hover {
-    background: var(--border-strong);
-    color: var(--text);
-}
-
-.share-modal-body {
-    padding: 20px 24px;
-    overflow-y: auto;
-    flex: 1;
-    min-height: 0;
-}
-
-.modal-desc {
-    color: var(--text-secondary);
-    font-size: 14px;
-    line-height: 1.6;
-    margin-bottom: 16px;
-    text-align: center;
-}
-
-.share-preview-wrapper {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    background: var(--bg);
-}
-
-.preview-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 10px 16px;
-    background: var(--card);
-    border-bottom: 1px solid var(--border);
-}
-
-.share-preview-frame {
-    max-height: 420px;
-    overflow-y: auto;
-    background: #f5f5f7;
-    position: relative;
-}
-
-.share-preview-frame iframe {
-    width: 100%;
-    height: 500px;
-    border: none;
-    display: block;
-}
-
-.share-modal-footer {
-    display: flex;
-    gap: 12px;
-    padding: 16px 24px;
-    border-top: 1px solid var(--border);
-    background: var(--bg);
-    flex-shrink: 0;
-}
-
-.btn-secondary {
-    flex: 1;
-    padding: 12px 20px;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-strong);
-    background: var(--card);
-    color: var(--text);
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-family: inherit;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.btn-secondary:hover {
-    background: var(--bg);
-    border-color: var(--accent);
-    color: var(--accent);
-}
-
-.btn-copy:hover {
-    border-color: #FF9500;
-    color: #FF9500;
-}
-
-@media (max-width: 640px) {
-    .share-modal-footer {
-        flex-direction: column;
-    }
-    .share-preview-frame iframe {
-        height: 400px;
-    }
-    .share-modal {
-        padding: 12px;
-    }
-    .share-modal-content {
-        max-height: 95vh;
-    }
-}
-
-@media (prefers-color-scheme: dark) {
-    .share-preview-frame {
-        background: #0b111d;
-    }
-    .share-section {
-        background: linear-gradient(135deg, rgba(90,200,255,0.04) 0%, rgba(0,122,255,0.04) 100%);
-        border-color: rgba(90,200,255,0.2);
     }
 }
