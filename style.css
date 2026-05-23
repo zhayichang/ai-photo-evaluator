@@ -352,31 +352,23 @@ button,
 .step-num {
     display: inline-flex;
     width: auto;
-    /* 由内容撑开 */
     min-width: 24px;
     height: 24px;
     padding: 0 8px;
-    /* 左右留呼吸感 */
     border-radius: 8px;
-    /* 圆角矩形，比正圆更 Apple */
     background: var(--bg);
-    /* 用浅灰背景替代蓝色 */
     color: var(--text-secondary);
-    /* 深灰文字 */
     align-items: center;
     justify-content: center;
     font-weight: 600;
-    /* 稍细一点 */
     font-size: 12px;
     font-variant-numeric: tabular-nums;
-    /* 数字等宽更整齐 */
     border: 1px solid var(--border);
-    /* 加一条极淡的边线 */
     flex-shrink: 0;
 }
 
 .upload-card .step-label {
-    padding: 16px 28px 0;
+    padding: 24px 28px 0;
 }
 
 /* 按钮内的步骤序号 */
@@ -615,7 +607,7 @@ select option {
 
 /* Preview */
 .preview-container {
-    padding: 12px 24px 24px;
+    padding: 8px 24px 24px;
     animation: fadeIn 0.4s ease-out;
 }
 
@@ -1144,17 +1136,6 @@ select option {
     margin-top: 8px;
 }
 
-.praise-list li {
-    padding: 14px 18px;
-    background: rgba(255, 255, 255, 0.85);
-    border: 1px solid rgba(0, 122, 255, 0.12);
-    border-radius: 16px;
-    color: var(--text);
-    font-size: 15px;
-    line-height: 1.6;
-    box-shadow: var(--shadow-sm);
-}
-
 .strengths-list,
 .improvements-list {
     list-style: none;
@@ -1264,6 +1245,17 @@ select option {
     font-weight: 700;
     margin-bottom: 20px;
     letter-spacing: -0.01em;
+}
+
+.save-card {
+    background: linear-gradient(135deg, rgba(0, 122, 255, 0.06) 0%, rgba(90, 200, 255, 0.04) 100%);
+    border: 1px solid rgba(0, 122, 255, 0.12);
+}
+
+#saveImageBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
 }
 
 /* Utilities */

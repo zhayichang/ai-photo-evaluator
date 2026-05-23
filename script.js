@@ -1107,7 +1107,7 @@ function renderResultProfessional(result) {
     });
 
     setTimeout(() => {
-        resultSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        window.scrollTo({ top: 0, behavior: "smooth" });
     }, 200);
 }
 
@@ -1146,10 +1146,14 @@ function renderResultBeginner(result) {
     if (allPraise.length === 0) {
         allPraise = ["画面有清晰的视觉中心", "色彩氛围自然舒适", "整体构图有良好的节奏感"];
     }
-    allPraise.forEach((p, index) => {
-        const li = document.createElement("li");
-        li.textContent = `${index + 1}. ${p}`;
-        praiseList.appendChild(li);
+    allPraise.forEach((p, i) => {
+        const div = document.createElement("div");
+        div.className = "tip-item";
+        div.innerHTML = `
+            <span class="tip-icon">${i + 1}</span>
+            <span class="tip-text">${p}</span>
+        `;
+        praiseList.appendChild(div);
     });
 
     // Tips: collect all suggestions
@@ -1182,7 +1186,7 @@ function renderResultBeginner(result) {
     });
 
     setTimeout(() => {
-        resultSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        window.scrollTo({ top: 0, behavior: "smooth" });
     }, 200);
 }
 
@@ -1201,3 +1205,152 @@ function renderListSection(title, items = []) {
         </div>
     `;
 }
+
+// =========================================
+// Save Result as Image (Long Screenshot)
+// =========================================
+
+const saveImageBtn = document.getElementById("saveImageBtn");
+
+saveImageBtn.addEventListener("click", async () => {
+    const btnText = saveImageBtn.innerHTML;
+    saveImageBtn.innerHTML = `<div class="spinner-small" style="width:16px;height:16px;border-width:2px;margin-right:6px;display:inline-block;vertical-align:middle;"></div>生成中...`;
+    saveImageBtn.disabled = true;
+
+    try {
+        // 1. 离屏容器：移出视口，但不用 opacity/visibility 隐藏
+        const tempContainer = document.createElement("div");
+        tempContainer.style.cssText = `
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            width: 800px;
+            padding: 40px;
+            background: #F5F5F7;
+            font-family: var(--font-base);
+        `;
+        document.body.appendChild(tempContainer);
+
+        // 2. 标题头
+        const header = document.createElement("div");
+        header.innerHTML = `
+            <div style="text-align: center; margin-bottom: 32px;">
+                <h1 style="font-size: 28px; font-weight: 600; color: #1D1D1F; margin: 0 0 8px; letter-spacing: -0.02em; font-family: var(--font-heading);">AI 摄影评价</h1>
+                <p style="font-size: 14px; color: #86868B; margin: 0; font-family: var(--font-base);">https://zhayichang.github.io/ai-photo-evaluator</p>
+            </div>
+        `;
+        tempContainer.appendChild(header);
+
+        // 3. 照片（强制与卡片同宽）
+        if (previewImage.src && previewImage.src !== "") {
+            const photoWrapper = document.createElement("div");
+            photoWrapper.style.cssText = "margin-bottom: 32px; width: 100%;";
+            const img = document.createElement("img");
+            img.src = previewImage.src;
+            img.style.cssText = "width: 100%; height: auto; display: block; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);";
+            photoWrapper.appendChild(img);
+            tempContainer.appendChild(photoWrapper);
+        }
+
+        // 4. 根据当前模式，只克隆对应卡片（不移除 hidden 时强制 display，避免破坏 flex/grid）
+        const contentWrapper = document.createElement("div");
+        contentWrapper.style.cssText = "width: 100%; display: flex; flex-direction: column; gap: 20px;";
+
+        if (currentMode === "professional") {
+            const ids = ["summaryCard", "scoreGrid", "analysisContainer"];
+            ids.forEach(id => {
+                const original = document.getElementById(id);
+                if (!original) return;
+                const clone = original.cloneNode(true);
+                clone.classList.remove("hidden");
+
+                // 只加白色背景和阴影，不覆盖 display 属性
+                clone.style.background = "#FFFFFF";
+                clone.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)";
+
+                if (id === "summaryCard") {
+                    clone.style.borderRadius = "16px";
+                    clone.style.padding = "24px";
+
+                    // 强制 SVG 圆环旋转到正确方向（html2canvas 有时丢失 CSS transform）
+                    const ringSvg = clone.querySelector(".ring-svg");
+                    if (ringSvg) {
+                        ringSvg.style.transform = "rotate(-90deg)";
+                    }
+
+                    // 强制圆环到最终状态，避免截到动画中间帧
+                    const ring = clone.querySelector("#ringProgress");
+                    if (ring) {
+                        const circumference = 2 * Math.PI * 60; // ≈ 377
+                        const score = parseFloat(document.getElementById("overallScore").textContent) || 0;
+                        const offset = circumference - (score / 10) * circumference;
+                        ring.style.transition = "none";
+                        ring.style.strokeDasharray = "377";
+                        ring.style.strokeDashoffset = offset;
+                    }
+                }
+
+                // 进度条：强制到最终宽度
+                clone.querySelectorAll(".progress-fill").forEach(bar => {
+                    const targetWidth = bar.getAttribute("data-width");
+                    if (targetWidth) {
+                        bar.style.transition = "none";
+                        bar.style.width = targetWidth;
+                    }
+                });
+
+                contentWrapper.appendChild(clone);
+            });
+        } else {
+            const ids = ["encouragementCard", "praiseCard", "tipsCard"];
+            ids.forEach(id => {
+                const original = document.getElementById(id);
+                if (!original) return;
+                const clone = original.cloneNode(true);
+                clone.classList.remove("hidden");
+                clone.style.background = "#FFFFFF";
+                clone.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)";
+                clone.style.borderRadius = "16px";
+                clone.style.padding = "24px";
+                contentWrapper.appendChild(clone);
+            });
+        }
+
+        tempContainer.appendChild(contentWrapper);
+
+        // 5. 等待图片加载
+        await Promise.all(
+            Array.from(tempContainer.querySelectorAll("img")).map(
+                img => new Promise(resolve => {
+                    if (img.complete) resolve();
+                    else { img.onload = resolve; img.onerror = resolve; }
+                })
+            )
+        );
+
+        // 6. 截图（直接截容器本身）
+        const canvas = await html2canvas(tempContainer, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: "#F5F5F7",
+            logging: false
+        });
+
+        // 7. 下载
+        const link = document.createElement("a");
+        link.download = `摄影评价_${new Date().toLocaleDateString().replace(/\//g, "-")}.png`;
+        link.href = canvas.toDataURL("image/png", 1.0);
+        link.click();
+
+        // 8. 清理
+        document.body.removeChild(tempContainer);
+
+    } catch (err) {
+        console.error("保存图片失败:", err);
+        alert("保存图片失败，请重试");
+    } finally {
+        saveImageBtn.innerHTML = btnText;
+        saveImageBtn.disabled = false;
+    }
+});

@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -193,7 +195,24 @@
 
                 <!-- Results -->
                 <section class="result-section hidden" id="resultSection">
-
+                    <div class="card save-card" id="saveCard"
+                        style="padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-size: 15px; font-weight: 600; color: var(--text);">评价已生成</span>
+                            <p style="font-size: 13px; color: var(--text-secondary); margin: 2px 0 0;">可以将结果保存为图片分享</p>
+                        </div>
+                        <button class="btn-primary" id="saveImageBtn"
+                            style="width: auto; padding: 10px 20px; font-size: 15px; margin: 0;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                                style="margin-right: 6px;">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                            保存长图
+                        </button>
+                    </div>
                     <!-- Summary & Score Ring (Professional only) -->
                     <div class="card summary-card hidden" id="summaryCard">
                         <div class="summary-content">
@@ -233,7 +252,7 @@
                     <!-- Beginner: Praise -->
                     <div class="card praise-card hidden" id="praiseCard">
                         <h3 class="section-title">值得表扬</h3>
-                        <ul class="praise-list" id="praiseList"></ul>
+                        <div class="praise-list" id="praiseList"></div>
                     </div>
 
                     <!-- Beginner: Tips -->
@@ -248,7 +267,7 @@
     </div>
 
     <script src="script.js"></script>
-    <footer class="app-footer">Designed by 猹猹🦡，Powered by KIMI🌕 & OpenAI🤖  --v2026.05.23</footer>
+    <footer class="app-footer">Designed by 猹猹🦡，Powered by Moonshot🌕 & OpenAI🤖 --v2026.05.23</footer>
 
 </body>
 
