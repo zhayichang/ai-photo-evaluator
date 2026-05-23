@@ -1218,7 +1218,7 @@ saveImageBtn.addEventListener("click", async () => {
     saveImageBtn.disabled = true;
 
     try {
-        // 1. 离屏容器：移出视口，但不用 opacity/visibility 隐藏
+        // 1. 离屏容器
         const tempContainer = document.createElement("div");
         tempContainer.style.cssText = `
             position: absolute;
@@ -1235,13 +1235,13 @@ saveImageBtn.addEventListener("click", async () => {
         const header = document.createElement("div");
         header.innerHTML = `
             <div style="text-align: center; margin-bottom: 32px;">
-                <h1 style="font-size: 28px; font-weight: 600; color: #1D1D1F; margin: 0 0 8px; letter-spacing: -0.02em; font-family: var(--font-heading);">AI 摄影评价</h1>
-                <p style="font-size: 14px; color: #86868B; margin: 0; font-family: var(--font-base);">https://zhayichang.github.io/ai-photo-evaluator</p>
+                <h1 style="font-size: 28px; font-weight: 800; color: #1D1D1F; margin: 0 0 8px; letter-spacing: -0.02em; font-family: var(--font-heading);">AI 摄影评价</h1>
+                <p style="font-size: 14px; color: #86868B; margin: 0; font-family: var(--font-base);">Powered by KIMI & OpenAI</p>
             </div>
         `;
         tempContainer.appendChild(header);
 
-        // 3. 照片（强制与卡片同宽）
+        // 3. 照片
         if (previewImage.src && previewImage.src !== "") {
             const photoWrapper = document.createElement("div");
             photoWrapper.style.cssText = "margin-bottom: 32px; width: 100%;";
@@ -1252,7 +1252,7 @@ saveImageBtn.addEventListener("click", async () => {
             tempContainer.appendChild(photoWrapper);
         }
 
-        // 4. 根据当前模式，只克隆对应卡片（不移除 hidden 时强制 display，避免破坏 flex/grid）
+        // 4. 根据当前模式克隆对应卡片
         const contentWrapper = document.createElement("div");
         contentWrapper.style.cssText = "width: 100%; display: flex; flex-direction: column; gap: 20px;";
 
@@ -1263,34 +1263,35 @@ saveImageBtn.addEventListener("click", async () => {
                 if (!original) return;
                 const clone = original.cloneNode(true);
                 clone.classList.remove("hidden");
-
-                // 只加白色背景和阴影，不覆盖 display 属性
                 clone.style.background = "#FFFFFF";
                 clone.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)";
 
                 if (id === "summaryCard") {
                     clone.style.borderRadius = "16px";
                     clone.style.padding = "24px";
-
-                    // 强制 SVG 圆环旋转到正确方向（html2canvas 有时丢失 CSS transform）
                     const ringSvg = clone.querySelector(".ring-svg");
-                    if (ringSvg) {
-                        ringSvg.style.transform = "rotate(-90deg)";
-                    }
-
-                    // 强制圆环到最终状态，避免截到动画中间帧
+                    if (ringSvg) ringSvg.style.transform = "rotate(-90deg)";
                     const ring = clone.querySelector("#ringProgress");
                     if (ring) {
-                        const circumference = 2 * Math.PI * 60; // ≈ 377
+                        const circumference = 2 * Math.PI * 60;
                         const score = parseFloat(document.getElementById("overallScore").textContent) || 0;
                         const offset = circumference - (score / 10) * circumference;
                         ring.style.transition = "none";
                         ring.style.strokeDasharray = "377";
                         ring.style.strokeDashoffset = offset;
                     }
+                } else if (id === "scoreGrid") {
+                    clone.style.marginBottom = "0";
+                    clone.querySelectorAll(".score-item").forEach(item => {
+                        item.style.background = "#FFFFFF";
+                    });
+                } else if (id === "analysisContainer") {
+                    clone.style.marginBottom = "0";
+                    clone.querySelectorAll(".analysis-card").forEach(card => {
+                        card.style.background = "#FFFFFF";
+                    });
                 }
 
-                // 进度条：强制到最终宽度
                 clone.querySelectorAll(".progress-fill").forEach(bar => {
                     const targetWidth = bar.getAttribute("data-width");
                     if (targetWidth) {
@@ -1328,13 +1329,44 @@ saveImageBtn.addEventListener("click", async () => {
             )
         );
 
-        // 6. 截图（直接截容器本身）
+        // 6. 截图：强制浅色模式覆盖
         const canvas = await html2canvas(tempContainer, {
             scale: 2,
             useCORS: true,
             allowTaint: true,
             backgroundColor: "#F5F5F7",
-            logging: false
+            logging: false,
+            onclone: (clonedDoc) => {
+                const style = clonedDoc.createElement("style");
+                style.textContent = `
+                    * { color: #1D1D1F !important; background-color: transparent !important; }
+                    .card, .score-item, .analysis-card, .tip-item, .praise-list > div, 
+                    .encouragement-card, .praise-card, .tips-card, .summary-card,
+                    .exif-display-card, .step-item, .mode-card, .upload-placeholder {
+                        background: #FFFFFF !important;
+                        border-color: rgba(0,0,0,0.08) !important;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
+                    }
+                    .praise-card { background: linear-gradient(135deg, #F2F7FF 0%, #EDF4FF 100%) !important; border-color: rgba(0,122,255,0.16) !important; }
+                    .tips-card { background: linear-gradient(135deg, #F0F9FF 0%, #E6F4FF 100%) !important; border-color: rgba(0,122,255,0.12) !important; }
+                    .encouragement-card { background: linear-gradient(135deg, #FFF9E6 0%, #FFF5D6 100%) !important; border-color: rgba(255,193,7,0.2) !important; }
+                    .exif-tag { background: #F5F5F7 !important; border-color: rgba(0,0,0,0.08) !important; }
+                    .tag { background: #F5F5F7 !important; color: #86868B !important; border-color: rgba(0,0,0,0.08) !important; }
+                    .placeholder-card { background: linear-gradient(180deg, #F8F9FA 0%, #FFFFFF 100%) !important; }
+                    .step-item { background: #FFFFFF !important; border-color: rgba(0,122,255,0.12) !important; }
+                    .score-label, .ring-label, .placeholder-text, .upload-hint,
+                    .analysis-card > p, .analysis-section li, .mode-desc, .tip-text,
+                    .exif-tag, .step-item p, .loading-sub, .loading-stage { color: #86868B !important; }
+                    .photo-type-badge { background: rgba(0,122,255,0.08) !important; color: #007AFF !important; }
+                    .tip-icon { background: #007AFF !important; color: #FFFFFF !important; }
+                    .ring-track { stroke: #F5F5F7 !important; }
+                    .ring-progress { stroke: #007AFF !important; }
+                    .progress-track { background: #F5F5F7 !important; }
+                    .progress-fill { background: linear-gradient(90deg, #007AFF, #5AC8FA) !important; }
+                    input, select { background: #F5F5F7 !important; border-color: rgba(0,0,0,0.15) !important; color: #1D1D1F !important; }
+                `;
+                clonedDoc.head.appendChild(style);
+            }
         });
 
         // 7. 下载
