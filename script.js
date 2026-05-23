@@ -1201,3 +1201,116 @@ function renderListSection(title, items = []) {
         </div>
     `;
 }
+
+// =========================================
+// Save Result as Image (Long Screenshot)
+// =========================================
+
+const saveImageBtn = document.getElementById("saveImageBtn");
+
+saveImageBtn.addEventListener("click", async () => {
+    const btnText = saveImageBtn.innerHTML;
+    saveImageBtn.innerHTML = `<div class="spinner-small" style="width:16px;height:16px;border-width:2px;margin-right:6px;display:inline-block;vertical-align:middle;"></div>生成中...`;
+    saveImageBtn.disabled = true;
+
+    try {
+        // 1. 创建临时容器，组装长图内容
+        const tempContainer = document.createElement("div");
+        tempContainer.style.cssText = `
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+            width: 800px;
+            background: #F5F5F7;
+            padding: 40px;
+            font-family: var(--font-base);
+            z-index: -1;
+        `;
+        document.body.appendChild(tempContainer);
+
+        // 2. 添加标题头
+        const header = document.createElement("div");
+        header.innerHTML = `
+            <div style="text-align: center; margin-bottom: 32px;">
+                <h1 style="font-size: 28px; font-weight: 800; color: #1D1D1F; margin: 0 0 8px; letter-spacing: -0.02em;">AI 摄影评价</h1>
+                <p style="font-size: 14px; color: #86868B; margin: 0;">Powered by KIMI & OpenAI</p>
+            </div>
+        `;
+        tempContainer.appendChild(header);
+
+        // 3. 添加照片（如果有）
+        if (previewImage.src && previewImage.src !== "") {
+            const photoWrapper = document.createElement("div");
+            photoWrapper.style.cssText = "margin-bottom: 32px; text-align: center;";
+            const img = document.createElement("img");
+            img.src = previewImage.src;
+            img.style.cssText = "max-width: 100%; max-height: 400px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);";
+            photoWrapper.appendChild(img);
+            tempContainer.appendChild(photoWrapper);
+        }
+
+        // 4. 克隆评价结果内容
+        const resultClone = resultSection.cloneNode(true);
+        
+        // 移除保存按钮本身（不需要出现在截图里）
+        const saveCardClone = resultClone.querySelector("#saveCard");
+        if (saveCardClone) saveCardClone.remove();
+
+        // 处理隐藏元素：强制显示所有 hidden 的内容
+        resultClone.querySelectorAll(".hidden").forEach(el => {
+            el.classList.remove("hidden");
+            el.style.display = "block";
+        });
+
+        // 调整克隆元素的样式，确保截图美观
+        resultClone.style.cssText = "display: block !important; padding: 0; margin: 0; background: transparent; box-shadow: none; border: none;";
+        
+        // 为克隆的卡片添加截图专用样式
+        resultClone.querySelectorAll(".card").forEach(card => {
+            card.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)";
+            card.style.marginBottom = "20px";
+            card.style.background = "#FFFFFF";
+        });
+
+        tempContainer.appendChild(resultClone);
+
+        // 5. 等待图片加载完成
+        const images = tempContainer.querySelectorAll("img");
+        await Promise.all(Array.from(images).map(img => {
+            return new Promise((resolve) => {
+                if (img.complete) resolve();
+                else {
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                }
+            });
+        }));
+
+        // 6. 使用 html2canvas 截图
+        const canvas = await html2canvas(tempContainer, {
+            scale: 2, // 高清 2x
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: "#F5F5F7",
+            logging: false,
+            windowWidth: 800,
+            width: 880 // 800 + 40*2 padding
+        });
+
+        // 7. 下载图片
+        const link = document.createElement("a");
+        link.download = `摄影评价_${new Date().toLocaleDateString().replace(/\//g, "-")}.png`;
+        link.href = canvas.toDataURL("image/png", 1.0);
+        link.click();
+
+        // 8. 清理临时 DOM
+        document.body.removeChild(tempContainer);
+
+    } catch (err) {
+        console.error("保存图片失败:", err);
+        alert("保存图片失败，请重试");
+    } finally {
+        saveImageBtn.innerHTML = btnText;
+        saveImageBtn.disabled = false;
+    }
+});

@@ -357,18 +357,13 @@ button,
     padding: 0 8px;
     border-radius: 8px;
     background: var(--bg);
-    /* 用浅灰背景替代蓝色 */
     color: var(--text-secondary);
-    /* 深灰文字 */
     align-items: center;
     justify-content: center;
     font-weight: 600;
-    /* 稍细一点 */
     font-size: 12px;
     font-variant-numeric: tabular-nums;
-    /* 数字等宽更整齐 */
     border: 1px solid var(--border);
-    /* 加一条极淡的边线 */
     flex-shrink: 0;
 }
 
@@ -1261,6 +1256,17 @@ select option {
     font-weight: 700;
     margin-bottom: 20px;
     letter-spacing: -0.01em;
+}
+
+.save-card {
+    background: linear-gradient(135deg, rgba(0, 122, 255, 0.06) 0%, rgba(90, 200, 255, 0.04) 100%);
+    border: 1px solid rgba(0, 122, 255, 0.12);
+}
+
+#saveImageBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
 }
 
 /* Utilities */
