@@ -44,45 +44,62 @@ body {
     color: var(--text);
     line-height: 1.5;
     font-size: 15px;
-    padding: 40px 20px;
+    padding: 40px 20px 16px;
     min-height: 100vh;
 }
 
-h1, h2, h3, h4, .section-title, .summary-title, .mode-title, .placeholder-card h3, .step-item strong {
+h1,
+h2,
+h3,
+h4,
+.section-title,
+.summary-title,
+.mode-title,
+.placeholder-card h3,
+.step-item strong {
     font-family: var(--font-heading);
 }
 
-h1, .section-title {
+h1,
+.section-title {
     line-height: 1.05;
 }
 
-p, label, input, select, button, .tip-text, .placeholder-text {
+p,
+label,
+input,
+select,
+button,
+.tip-text,
+.placeholder-text {
     font-family: var(--font-base);
 }
 
 .app-container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 24px 32px;
+    padding: 24px 24px 8px; 
+    display: grid;
+    gap: 0;
 }
 
 .app-layout {
     display: grid;
     grid-template-columns: minmax(320px, 440px) minmax(520px, 1fr);
-    gap: 28px;
+    gap: 20px;
     align-items: start;
 }
 
 .input-column,
 .output-column {
     display: grid;
-    gap: 20px;
 }
 
 .input-column {
     position: sticky;
     top: 24px;
     align-self: start;
+    z-index: 2;
 }
 
 .output-column {
@@ -94,7 +111,7 @@ p, label, input, select, button, .tip-text, .placeholder-text {
     display: grid;
     grid-template-columns: 1fr;
     gap: 24px;
-    padding: 32px;
+    padding: 24px;
     text-align: left;
     background: linear-gradient(180deg, rgba(248, 249, 250, 0.98) 0%, rgba(255, 255, 255, 0.96) 100%);
     border: 1px solid rgba(60, 60, 67, 0.12);
@@ -137,7 +154,7 @@ p, label, input, select, button, .tip-text, .placeholder-text {
 
 .placeholder-steps {
     display: grid;
-    gap: 12px;
+    gap: 16px;
 }
 
 .step-item {
@@ -178,7 +195,8 @@ p, label, input, select, button, .tip-text, .placeholder-text {
 }
 
 .loading-section {
-    padding: 40px 28px;
+    padding: 24px;
+    margin-bottom: 20px;
     text-align: center;
 }
 
@@ -186,51 +204,101 @@ p, label, input, select, button, .tip-text, .placeholder-text {
     margin-bottom: 24px;
 }
 
-/* Header */
-.app-header {
-    text-align: center;
-    margin-bottom: 32px;
-    animation: fadeIn 0.6s ease-out;
-    padding: 28px 24px;
-    background: rgba(255, 255, 255, 0.92);
-    border-radius: var(--radius-xl);
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.08);
-    backdrop-filter: blur(16px);
-}
-
-.app-header h1 {
-    font-family: var(--font-heading);
-    font-size: 42px;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    margin-bottom: 8px;
-    line-height: 1.02;
-    color: #111115;
-}
-
-.subtitle {
-    color: var(--text-secondary);
-    font-size: 15px;
-    font-weight: 500;
-    margin-top: 6px;
-}
-
-/* Cards */
+/* Cards — hover 阴影大幅弱化 */
 .card {
-    background: rgba(255, 255, 255, 0.96);
+    background: var(--card);
     border-radius: var(--radius-lg);
-    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.08);
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    padding: 28px;
-    margin-bottom: 24px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
+    padding: 24px;
+    margin-bottom: 20px;
     animation: slideUp 0.5s ease-out;
     transition: transform 0.2s ease, box-shadow 0.3s ease;
 }
 
 .card:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 22px 48px rgba(0, 0, 0, 0.1);
+    transform: translateY(-0.5px);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+}
+
+/* ========================================
+   Title Card（替代原来的导航栏）
+   ======================================== */
+
+.title-card {
+    text-align: center;
+    padding: 28px 32px;
+    margin-bottom: 20px;
+    grid-column: 1 / -1;  
+}
+
+.title-card h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+    color: var(--text);
+}
+
+.title-card .subtitle {
+    font-size: 15px;
+    color: var(--text-secondary);
+    font-weight: 400;
+    margin: 0;
+}
+
+/* ========================================
+   Step Labels（卡片内步骤序号）
+   ======================================== */
+
+.step-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.step-num {
+    display: inline-flex;
+    width: auto;              /* 由内容撑开 */
+    min-width: 24px;
+    height: 24px;
+    padding: 0 8px;           /* 左右留呼吸感 */
+    border-radius: 8px;       /* 圆角矩形，比正圆更 Apple */
+    background: var(--bg);    /* 用浅灰背景替代蓝色 */
+    color: var(--text-secondary);  /* 深灰文字 */
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;         /* 稍细一点 */
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;  /* 数字等宽更整齐 */
+    border: 1px solid var(--border);     /* 加一条极淡的边线 */
+    flex-shrink: 0;
+}
+
+.upload-card .step-label {
+    padding: 16px 28px 0;
+}
+
+/* 按钮内的步骤序号 */
+.btn-step {
+    display: inline-flex;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--accent);
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 12px;
+    margin-right: 4px;
+    flex-shrink: 0;
 }
 
 /* Settings */
@@ -311,15 +379,15 @@ select option {
 .mode-selector {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 20px;
+    gap: 16px;
+    margin-bottom: 0;
     animation: slideUp 0.5s ease-out;
 }
 
 .mode-card {
     position: relative;
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid rgba(60, 60, 67, 0.16);
+    background: var(--card);
+    border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: 24px;
     text-align: center;
@@ -330,8 +398,8 @@ select option {
 
 .mode-card:hover {
     border-color: var(--border-strong);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
 }
 
 .mode-card.active {
@@ -386,8 +454,8 @@ select option {
 .upload-card {
     padding: 0;
     overflow: hidden;
-    border: 1px solid rgba(60, 60, 67, 0.12);
-    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid var(--border);
+    background: var(--card);
 }
 
 .upload-placeholder {
@@ -396,7 +464,7 @@ select option {
     text-align: center;
     transition: all 0.3s ease;
     cursor: pointer;
-    background: rgba(250, 250, 250, 0.92);
+    background: var(--card-elevated);
 }
 
 .upload-card.drag-over .upload-placeholder {
@@ -509,7 +577,7 @@ select option {
     justify-content: center;
     gap: 10px;
     width: 100%;
-    margin: 0 0 24px;
+    margin: 0 0 20px;
     padding: 16px 24px;
     background: linear-gradient(135deg, #007AFF, #0A84FF);
     color: white;
@@ -524,26 +592,23 @@ select option {
 
 .btn-primary:hover {
     background: linear-gradient(135deg, #0051D5, #3EA9FF);
-    transform: translateY(-2px);
-    box-shadow: 0 12px 24px rgba(0, 122, 255, 0.22);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0, 122, 255, 0.15);
 }
 
 .btn-primary:active {
     transform: translateY(0);
 }
 
-/* EXIF Display Card (uploaded locally) */
+/* EXIF Display Card — 统一为白色卡片风格 */
 .exif-display-card {
-    padding: 20px 24px;
-    background: linear-gradient(135deg, #F8F9FA 0%, #F2F4F6 100%);
-    border: 1px solid rgba(0, 0, 0, 0.04);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    padding: 24px;
 }
 
 .exif-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
 }
 
 .exif-tag {
@@ -551,12 +616,12 @@ select option {
     align-items: center;
     gap: 6px;
     padding: 10px 14px;
-    background: var(--card);
+    background: var(--bg);
     border-radius: 16px;
     font-size: 13px;
     font-weight: 500;
     color: var(--text-secondary);
-    border: 1px solid rgba(0, 0, 0, 0.04);
+    border: 1px solid var(--border);
     box-shadow: var(--shadow-sm);
     white-space: normal;
     max-width: 100%;
@@ -626,7 +691,7 @@ select option {
     align-items: flex-start;
     justify-content: space-between;
     gap: 24px;
-    padding: 32px;
+    padding: 24px;
 }
 
 .summary-content {
@@ -741,9 +806,64 @@ select option {
 /* Score Grid (Professional) */
 .score-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
+    gap: 16px;
     margin-bottom: 20px;
+}
+
+@media (max-width: 980px) {
+    .score-grid {
+        grid-template-columns: repeat(2, minmax(200px, 1fr));
+    }
+
+    .input-column {
+        position: static;
+        top: auto;
+    }
+}
+
+@media (max-width: 640px) {
+    .score-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .input-column {
+        position: static;
+        top: auto;
+    }
+
+    .score-ring-wrapper {
+        align-self: center;
+    }
+
+    .preview-image-wrapper {
+        max-height: 280px;
+    }
+
+    .preview-image-wrapper img {
+        max-height: 280px;
+    }
+
+    body {
+        padding: 20px 16px 12px;
+    }
+
+    .app-header h1 {
+        font-size: 17px;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .mode-selector {
+        grid-template-columns: 1fr;
+    }
+
+    .summary-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 }
 
 .score-item {
@@ -756,8 +876,8 @@ select option {
 }
 
 .score-item:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
 }
 
 .score-top {
@@ -814,7 +934,7 @@ select option {
 }
 
 .analysis-card:hover {
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
 }
 
 .analysis-card h2 {
@@ -913,32 +1033,9 @@ select option {
     background: #34C759;
 }
 
-/* Strengths & Improvements */
-.card-row {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
-}
-
-@media (max-width: 760px) {
-    .card-row {
-        grid-template-columns: 1fr;
-    }
-}
-
-.strengths-card {
-    background: linear-gradient(135deg, #F2FFF4 0%, #E8FCEB 100%);
-    border: 1px solid rgba(52, 199, 89, 0.15);
-}
-
-.improvements-card {
-    background: linear-gradient(135deg, #FFF8F0 0%, #FFF0E6 100%);
-    border: 1px solid rgba(255, 149, 0, 0.15);
-}
 
 .praise-card {
-    padding: 28px;
+    padding: 24px;
     background: linear-gradient(135deg, #F2F7FF 0%, #EDF4FF 100%);
     border: 1px solid rgba(0, 122, 255, 0.16);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
@@ -947,7 +1044,7 @@ select option {
 .praise-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
     list-style: none;
     padding: 0;
     margin-top: 8px;
@@ -1004,7 +1101,7 @@ select option {
 /* Beginner Mode Cards */
 .encouragement-card {
     text-align: center;
-    padding: 40px 32px;
+    padding: 24px;
     background: linear-gradient(135deg, #FFF9E6 0%, #FFF5D6 100%);
     border: 1px solid rgba(255, 193, 7, 0.2);
 }
@@ -1025,7 +1122,7 @@ select option {
 }
 
 .tips-card {
-    padding: 28px;
+    padding: 24px;
     background: linear-gradient(135deg, #F0F9FF 0%, #E6F4FF 100%);
     border: 1px solid rgba(0, 122, 255, 0.12);
 }
@@ -1033,7 +1130,7 @@ select option {
 .tips-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
 }
 
 .tip-item {
@@ -1109,10 +1206,10 @@ select option {
     }
 }
 
-/* Footer */
+/* Footer — 底部空间收紧 */
 .app-footer {
     text-align: center;
-    padding: 32px 20px;
+    padding: 16px 20px 4px;
     font-size: 13px;
     color: var(--text-secondary);
     opacity: 0.7;
@@ -1126,41 +1223,162 @@ select option {
     }
 }
 
-@media (max-width: 640px) {
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #0b111d;
+        --card: rgba(12, 18, 34, 0.95);
+        --card-elevated: rgba(18, 26, 45, 0.96);
+        --text: #F3F5F9;
+        --text-secondary: #9CA5B4;
+        --accent: #5AC8FF;
+        --accent-hover: #3EA9FF;
+        --accent-light: rgba(90, 200, 255, 0.12);
+        --border: rgba(255, 255, 255, 0.08);
+        --border-strong: rgba(255, 255, 255, 0.14);
+        --shadow-sm: 0 10px 30px rgba(0, 0, 0, 0.22);
+        --shadow-md: 0 18px 44px rgba(0, 0, 0, 0.28);
+        --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.32);
+    }
+
+    html {
+        color-scheme: dark;
+    }
+
     body {
-        padding: 20px 16px;
+        background: radial-gradient(circle at top, #111628 0%, #0d1221 36%, #07101b 100%);
     }
 
-    .app-header h1 {
-        font-size: 32px;
+    .app-header,
+    .card,
+    .placeholder-card,
+    .mode-card,
+    .upload-card,
+    .upload-placeholder,
+    .upload-loading,
+    .preview-container,
+    .analysis-card,
+    .score-item,
+    .exif-display-card {
+        background: var(--card);
+        border-color: var(--border);
+        box-shadow: var(--shadow-sm);
     }
 
-    .form-row {
-        grid-template-columns: 1fr;
+    .app-header {
+        background: rgba(10, 16, 30, 0.96);
     }
 
-    .mode-selector {
-        grid-template-columns: 1fr;
+    .card:hover,
+    .mode-card:hover,
+    .score-item:hover {
+        box-shadow: var(--shadow-md);
     }
 
-    .summary-card {
-        flex-direction: column;
-        align-items: flex-start;
+    .subtitle,
+    .upload-hint,
+    .loading-text,
+    .loading-sub,
+    .placeholder-text,
+    .step-item p,
+    .analysis-card>p,
+    .analysis-section li,
+    .tip-text,
+    .exif-tag,
+    .score-label,
+    .ring-label,
+    .form-group label,
+    .tag {
+        color: var(--text-secondary);
     }
 
-    .score-ring-wrapper {
-        align-self: center;
+    body,
+    p,
+    label,
+    input,
+    select,
+    button,
+    .tip-text,
+    .placeholder-text {
+        color: var(--text);
     }
 
-    .score-grid {
-        grid-template-columns: 1fr;
+    .upload-placeholder,
+    .step-item,
+    .preview-image-wrapper,
+    .loading-section {
+        background: rgba(14, 20, 37, 0.95);
     }
 
-    .preview-image-wrapper {
-        max-height: 280px;
+    .upload-card,
+    .placeholder-card {
+        border-color: rgba(255, 255, 255, 0.08);
     }
 
-    .preview-image-wrapper img {
-        max-height: 280px;
+    .placeholder-card {
+        background: linear-gradient(180deg, rgba(16, 24, 42, 0.96) 0%, rgba(18, 28, 48, 0.98) 100%);
+    }
+
+    .step-item {
+        background: rgba(18, 26, 44, 0.96);
+        border-color: rgba(90, 200, 255, 0.16);
+    }
+
+    .placeholder-icon {
+        background: rgba(90, 200, 255, 0.14);
+        color: var(--accent);
+    }
+
+    .mode-card {
+        background: var(--card);
+        border-color: var(--border);
+    }
+
+    .mode-card.active {
+        background: rgba(10, 132, 255, 0.12);
+    }
+
+    input,
+    select {
+        background: rgba(12, 18, 34, 0.95);
+        border-color: rgba(255, 255, 255, 0.12);
+        color: var(--text);
+    }
+
+    input::placeholder,
+    select option {
+        color: var(--text-secondary);
+    }
+
+    .btn-primary {
+        box-shadow: 0 12px 28px rgba(10, 132, 255, 0.25);
+    }
+
+    .replace-btn {
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text);
+    }
+
+    .replace-btn:hover {
+        background: rgba(255, 255, 255, 0.14);
+    }
+
+    .tips-card {
+        background: linear-gradient(135deg, rgba(14, 24, 44, 0.95) 0%, rgba(18, 28, 46, 0.95) 100%);
+        border-color: rgba(90, 200, 255, 0.15);
+    }
+
+    .praise-card {
+        background: linear-gradient(135deg, rgba(18, 26, 44, 0.95) 0%, rgba(22, 32, 52, 0.96) 100%);
+        border-color: rgba(90, 200, 255, 0.16);
+    }
+
+    .encouragement-card {
+        background: linear-gradient(135deg, rgba(32, 24, 10, 0.92) 0%, rgba(40, 32, 16, 0.94) 100%);
+        border-color: rgba(255, 193, 7, 0.24);
+    }
+
+    .exif-tag {
+        background: rgba(16, 24, 40, 0.95);
+        border-color: rgba(255, 255, 255, 0.08);
     }
 }

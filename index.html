@@ -8,121 +8,129 @@
     <link rel="stylesheet" href="style.css">
     <link rel="icon"
         href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📷</text></svg>">
-<base target="_blank">
+    <base target="_blank">
+    <base target="_blank">
 </head>
 
 <body>
 
     <div class="app-container">
 
-        <!-- Header -->
-        <header class="app-header">
+        <section class="card title-card">
             <h1>AI 摄影评价</h1>
             <p class="subtitle">AI 驱动的专业视觉分析</p>
-        </header>
+        </section>
 
         <div class="app-layout">
             <div class="input-column">
-                <!-- Upload Panel -->
+                <!-- 步骤 1：上传照片 -->
                 <section class="card upload-card" id="dropZone">
+                    <div class="step-label"><span class="step-num">1</span>上传照片</div>
                     <input type="file" id="imageInput" accept="image/*" hidden>
 
                     <div class="upload-placeholder" id="uploadPlaceholder">
-                <div class="upload-icon">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                        <div class="upload-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="17 8 12 3 7 8" />
+                                <line x1="12" y1="3" x2="12" y2="15" />
+                            </svg>
+                        </div>
+                        <p class="upload-title">点击或拖拽上传图片</p>
+                        <p class="upload-hint">支持 JPG、PNG、WebP，建议小于 20MB</p>
+                    </div>
+
+                    <div class="upload-loading hidden" id="uploadLoading">
+                        <div class="spinner-small"></div>
+                        <p class="upload-loading-text">正在读取图片...</p>
+                    </div>
+
+                    <div class="preview-container hidden" id="previewContainer">
+                        <div class="preview-image-wrapper">
+                            <img id="previewImage" alt="预览">
+                            <button class="btn-icon replace-btn" id="replaceBtn" title="更换图片">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="17 8 12 3 7 8" />
+                                    <line x1="12" y1="3" x2="12" y2="15" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 步骤 2：选择模型并输入 API Key -->
+                <section class="card settings-card">
+                    <div class="step-label"><span class="step-num">2</span>选择模型并输入 API Key</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="provider">API 提供商</label>
+                            <select id="provider">
+                                <option value="moonshot" selected>Moonshot AI</option>
+                                <option value="openai">OpenAI</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="modelName">模型</label>
+                            <select id="modelName"></select>
+                        </div>
+                    </div>
+                    <div class="form-row api-key-row">
+                        <div class="form-group">
+                            <label for="apiKey">API Key</label>
+                            <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
+                            <small
+                                style="color: var(--text-secondary); font-size: 12px; margin-top: 4px; display: block;">
+                                请输入你自己的 API Key，分析将直连 AI 服务商
+                            </small>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 步骤 3：选择分析模式 -->
+                <section class="card mode-selector-card">
+                    <div class="step-label"><span class="step-num">3</span>选择分析模式</div>
+                    <div class="mode-selector" id="modeSelector">
+                        <div class="mode-card active" data-mode="beginner">
+                            <div class="mode-check">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                            </div>
+                            <div class="mode-icon">🌱</div>
+                            <div class="mode-info">
+                                <div class="mode-title">入门模式</div>
+                                <div class="mode-desc">轻松友好点评</div>
+                            </div>
+                        </div>
+                        <div class="mode-card" data-mode="professional">
+                            <div class="mode-check">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                            </div>
+                            <div class="mode-icon">📷</div>
+                            <div class="mode-info">
+                                <div class="mode-title">专业模式</div>
+                                <div class="mode-desc">深度技术解析</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 步骤 4：点击开始 -->
+                <button class="btn-primary analyze-btn" id="analyzeBtn">
+                    <span id="analyzeBtnText">开始友好点评</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                         stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="17 8 12 3 7 8" />
-                        <line x1="12" y1="3" x2="12" y2="15" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                        <polyline points="12 5 19 12 12 19" />
                     </svg>
-                </div>
-                <p class="upload-title">点击或拖拽上传图片</p>
-                <p class="upload-hint">支持 JPG、PNG、WebP，建议小于 20MB</p>
-            </div>
-
-            <!-- Upload Loading -->
-            <div class="upload-loading hidden" id="uploadLoading">
-                <div class="spinner-small"></div>
-                <p class="upload-loading-text">正在读取图片...</p>
-            </div>
-
-            <div class="preview-container hidden" id="previewContainer">
-                <div class="preview-image-wrapper">
-                    <img id="previewImage" alt="预览">
-                    <button class="btn-icon replace-btn" id="replaceBtn" title="更换图片">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="17 8 12 3 7 8" />
-                            <line x1="12" y1="3" x2="12" y2="15" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        </section>
-
-        <!-- Settings Panel -->
-        <section class="card settings-card">
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="provider">API 提供商</label>
-                    <select id="provider">
-                        <option value="moonshot" selected>Moonshot AI</option>
-                        <option value="openai">OpenAI</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="modelName">模型</label>
-                    <select id="modelName"></select>
-                </div>
-            </div>
-            <div class="form-row api-key-row">
-                <div class="form-group">
-                    <label for="apiKey">API Key</label>
-                    <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
-                    <small style="color: var(--text-secondary); font-size: 12px; margin-top: 4px; display: block;">
-                        请输入你自己的 API Key，分析将直连 AI 服务商
-                    </small>
-        </section>
-
-        <!-- Mode Selector -->
-        <section class="mode-selector" id="modeSelector">
-            <div class="mode-card active" data-mode="beginner">
-                <div class="mode-check">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                </div>
-                <div class="mode-icon">🌱</div>
-                <div class="mode-info">
-                    <div class="mode-title">入门模式</div>
-                    <div class="mode-desc">轻松友好点评 · 鼓励进步</div>
-                </div>
-            </div>
-            <div class="mode-card" data-mode="professional">
-                <div class="mode-check">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                </div>
-                <div class="mode-icon">📷</div>
-                <div class="mode-info">
-                    <div class="mode-title">专业模式</div>
-                    <div class="mode-desc">深度技术解析 · 严格评分</div>
-                </div>
-            </div>
-        </section>
-
-        <button class="btn-primary analyze-btn" id="analyzeBtn">
-            <span id="analyzeBtnText">开始友好点评</span>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                stroke-linecap="round" stroke-linejoin="round">
-                <line x1="5" y1="12" x2="19" y2="12" />
-                <polyline points="12 5 19 12 12 19" />
-            </svg>
-        </button>
+                </button>
 
             </div>
 
@@ -182,68 +190,55 @@
                 <!-- Results -->
                 <section class="result-section hidden" id="resultSection">
 
-            <!-- Summary & Score Ring (Professional only) -->
-            <div class="card summary-card hidden" id="summaryCard">
-                <div class="summary-content">
-                    <div class="summary-header">
-                        <span class="photo-type-badge" id="photoType">未识别</span>
-                        <h2 id="overallSummary" class="summary-title">分析结果</h2>
-                    </div>
-                    <div class="style-tags" id="styleTags"></div>
-                </div>
+                    <!-- Summary & Score Ring (Professional only) -->
+                    <div class="card summary-card hidden" id="summaryCard">
+                        <div class="summary-content">
+                            <div class="summary-header">
+                                <span class="photo-type-badge" id="photoType">未识别</span>
+                                <h2 id="overallSummary" class="summary-title">分析结果</h2>
+                            </div>
+                            <div class="style-tags" id="styleTags"></div>
+                        </div>
 
-                <div class="score-ring-wrapper">
-                    <div class="score-ring" id="scoreRing">
-                        <svg viewBox="0 0 140 140" class="ring-svg">
-                            <circle class="ring-track" cx="70" cy="70" r="60" />
-                            <circle class="ring-progress" id="ringProgress" cx="70" cy="70" r="60" />
-                        </svg>
-                        <div class="ring-score">
-                            <span class="ring-number" id="overallScore">0.0</span>
-                            <span class="ring-label">综合评分</span>
+                        <div class="score-ring-wrapper">
+                            <div class="score-ring" id="scoreRing">
+                                <svg viewBox="0 0 140 140" class="ring-svg">
+                                    <circle class="ring-track" cx="70" cy="70" r="60" />
+                                    <circle class="ring-progress" id="ringProgress" cx="70" cy="70" r="60" />
+                                </svg>
+                                <div class="ring-score">
+                                    <span class="ring-number" id="overallScore">0.0</span>
+                                    <span class="ring-label">综合评分</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- Professional: Score Grid -->
-            <div class="score-grid hidden" id="scoreGrid"></div>
+                    <!-- Professional: Score Grid -->
+                    <div class="score-grid hidden" id="scoreGrid"></div>
 
-            <!-- Professional: Strengths & Improvements -->
-            <div class="card-row">
-                <div class="card strengths-card hidden" id="strengthsCard">
-                    <h3 class="section-title">作品优点</h3>
-                    <ul class="strengths-list" id="strengthsList"></ul>
-                </div>
+                    <!-- Professional: Analysis Cards -->
+                    <div class="analysis-container hidden" id="analysisContainer"></div>
 
-                <div class="card improvements-card hidden" id="improvementsCard">
-                    <h3 class="section-title">可优化点</h3>
-                    <ul class="improvements-list" id="improvementsList"></ul>
-                </div>
-            </div>
+                    <!-- Beginner: Encouragement -->
+                    <div class="card encouragement-card hidden" id="encouragementCard">
+                        <div class="encouragement-emoji">✨</div>
+                        <p class="encouragement-text" id="encouragementText"></p>
+                    </div>
 
-            <!-- Professional: Analysis Cards -->
-            <div class="analysis-container hidden" id="analysisContainer"></div>
+                    <!-- Beginner: Praise -->
+                    <div class="card praise-card hidden" id="praiseCard">
+                        <h3 class="section-title">值得表扬</h3>
+                        <ul class="praise-list" id="praiseList"></ul>
+                    </div>
 
-            <!-- Beginner: Encouragement -->
-            <div class="card encouragement-card hidden" id="encouragementCard">
-                <div class="encouragement-emoji">✨</div>
-                <p class="encouragement-text" id="encouragementText"></p>
-            </div>
+                    <!-- Beginner: Tips -->
+                    <div class="card tips-card hidden" id="tipsCard">
+                        <h3 class="section-title">小建议</h3>
+                        <div class="tips-list" id="tipsList"></div>
+                    </div>
 
-            <!-- Beginner: Praise -->
-            <div class="card praise-card hidden" id="praiseCard">
-                <h3 class="section-title">值得表扬</h3>
-                <ul class="praise-list" id="praiseList"></ul>
-            </div>
-
-            <!-- Beginner: Tips -->
-            <div class="card tips-card hidden" id="tipsCard">
-                <h3 class="section-title">小建议</h3>
-                <div class="tips-list" id="tipsList"></div>
-            </div>
-
-        </section>
+                </section>
             </div>
         </div>
     </div>

@@ -850,8 +850,6 @@ analyzeBtn.addEventListener("click", async () => {
     // 隐藏所有条件区域
     document.getElementById("scoreGrid").classList.add("hidden");
     document.getElementById("analysisContainer").classList.add("hidden");
-    document.getElementById("strengthsCard").classList.add("hidden");
-    document.getElementById("improvementsCard").classList.add("hidden");
     document.getElementById("encouragementCard").classList.add("hidden");
     document.getElementById("tipsCard").classList.add("hidden");
     document.getElementById("summaryCard").classList.add("hidden");
@@ -1041,8 +1039,6 @@ function renderResultProfessional(result) {
     // Show professional sections
     document.getElementById("scoreGrid").classList.remove("hidden");
     document.getElementById("analysisContainer").classList.remove("hidden");
-    document.getElementById("strengthsCard").classList.remove("hidden");
-    document.getElementById("improvementsCard").classList.remove("hidden");
 
     // Score Grid
     const scoreGrid = document.getElementById("scoreGrid");
@@ -1078,40 +1074,6 @@ function renderResultProfessional(result) {
                 bar.style.width = bar.getAttribute("data-width");
             });
         }, 100);
-    });
-
-    // Strengths
-    const strengthsList = document.getElementById("strengthsList");
-    strengthsList.innerHTML = "";
-    let allStrengths = [];
-    ["composition", "lighting", "color", "storytelling", "post_processing"].forEach(key => {
-        const section = result[key];
-        if (section && section.strengths) {
-            section.strengths.forEach(s => allStrengths.push(s));
-        }
-    });
-    allStrengths = [...new Set(allStrengths)].slice(0, 10);
-    allStrengths.forEach(s => {
-        const li = document.createElement("li");
-        li.textContent = s;
-        strengthsList.appendChild(li);
-    });
-
-    // Improvements
-    const improvementsList = document.getElementById("improvementsList");
-    improvementsList.innerHTML = "";
-    let allImprovements = [];
-    ["composition", "lighting", "color", "storytelling", "post_processing"].forEach(key => {
-        const section = result[key];
-        if (section && section.improvements) {
-            section.improvements.forEach(s => allImprovements.push(s));
-        }
-    });
-    allImprovements = [...new Set(allImprovements)].slice(0, 10);
-    allImprovements.forEach(s => {
-        const li = document.createElement("li");
-        li.textContent = s;
-        improvementsList.appendChild(li);
     });
 
     // Analysis Cards
@@ -1160,8 +1122,6 @@ function renderResultBeginner(result) {
     document.getElementById("summaryCard").classList.add("hidden");
     document.getElementById("scoreGrid").classList.add("hidden");
     document.getElementById("analysisContainer").classList.add("hidden");
-    document.getElementById("strengthsCard").classList.add("hidden");
-    document.getElementById("improvementsCard").classList.add("hidden");
 
     // Show beginner sections
     document.getElementById("encouragementCard").classList.remove("hidden");
