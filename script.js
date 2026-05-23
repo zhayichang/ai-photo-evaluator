@@ -509,8 +509,8 @@ analyzeBtn.addEventListener("click", async () => {
             data = await response.json();
 
         } else {
-            // ===== 使用默认服务：走 Cloudflare Worker =====
-            const WORKER_URL = "https://ai-photo-evaluator.zhayichang.workers.dev";
+            // ===== 使用默认服务：走 Vercel =====
+            const WORKER_URL = "https://ai-photo-evaluator.vercel.app";
 
             const response = await fetch(`${WORKER_URL}/api/analyze`, {
                 method: "POST",
