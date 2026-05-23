@@ -347,13 +347,19 @@ const SYSTEM_PROMPT_PRO = `
 14. 问题分析应使用"可以进一步优化""如果调整会更好"等建设性表达
 
 评分参考：
-- 5-6 分：普通爱好者水平
-- 7 分：完成度较好
-- 8 分：优秀作品
-- 9 分：专业级作品
-- 10 分：极少使用，仅限极高水平作品
+- 1-3 分：基础缺失或严重失误（如主体模糊、严重过曝/欠曝、构图混乱、无明确主题）
+- 4-5 分：有明显不足，属于爱好者中的普通水平（常见问题：光线平淡、构图随意、色彩失调）
+- 6 分：及格线，基本完整但缺乏亮点，看完不会留下印象
+- 7 分：良好，有可取之处，但仍有明显优化空间
+- 8 分：优秀，完成度高，在构图、光线或色彩等至少一个维度表现突出
+- 9 分：出色，接近专业水准，多个维度协调统一，具有视觉冲击力
+- 10 分：卓越，具有艺术感染力或技术完美，达到可获奖、可展览水准
 
-请避免评分过低或过于极端。
+评分原则：
+1. 客观诚实，该高则高、该低则低，不要刻意向中间靠拢
+2. 普通随手拍给 4-6 分是合理的，真正优秀的作品也不要吝啬 9-10 分
+3. 各维度评分允许拉开差距（如构图 9 分但后期 5 分）
+4. 综合评分不是平均分，应反映整体观感，允许偏向最突出的维度或最拖后腿的维度
 
 JSON结构如下：
 {
@@ -836,6 +842,14 @@ analyzeBtn.addEventListener("click", async () => {
         return;
     }
 
+    resetAnalysisState();
+
+    analyzeBtn.disabled = true;
+    analyzeBtn.style.opacity = "0.6";
+    analyzeBtn.style.cursor = "not-allowed";
+    const originalBtnText = analyzeBtnText.textContent;
+    analyzeBtnText.textContent = "分析中...";
+
     loadingSection.classList.remove("hidden");
     resultSection.classList.add("hidden");
     document.getElementById("outputPlaceholder").classList.add("hidden");
@@ -969,8 +983,47 @@ ISO：${extractedExif.iso || "未知"}
         clearTimeout(timeoutId);
         stopLoadingAnimation();
         loadingSection.classList.add("hidden");
+        analyzeBtn.disabled = false;
+        analyzeBtn.style.opacity = "";
+        analyzeBtn.style.cursor = "";
+        analyzeBtnText.textContent = originalBtnText;
     }
 });
+
+function resetAnalysisState() {
+    clearInterval(loadingStageInterval);
+    clearInterval(loadingProgressInterval);
+    loadingStageInterval = null;
+    loadingProgressInterval = null;
+
+    const scoreGrid = document.getElementById("scoreGrid");
+    const analysisContainer = document.getElementById("analysisContainer");
+    const praiseList = document.getElementById("praiseList");
+    const tipsList = document.getElementById("tipsList");
+    const styleTags = document.getElementById("styleTags");
+    const overallScore = document.getElementById("overallScore");
+    const photoType = document.getElementById("photoType");
+    const overallSummary = document.getElementById("overallSummary");
+    const encouragementText = document.getElementById("encouragementText");
+
+    if (scoreGrid) scoreGrid.innerHTML = "";
+    if (analysisContainer) analysisContainer.innerHTML = "";
+    if (praiseList) praiseList.innerHTML = "";
+    if (tipsList) tipsList.innerHTML = "";
+    if (styleTags) styleTags.innerHTML = "";
+    if (overallScore) overallScore.textContent = "0.0";
+    if (photoType) photoType.textContent = "未识别类型";
+    if (overallSummary) overallSummary.textContent = "";
+    if (encouragementText) encouragementText.textContent = "";
+
+    document.getElementById("summaryCard").classList.add("hidden");
+    document.getElementById("scoreGrid").classList.add("hidden");
+    document.getElementById("analysisContainer").classList.add("hidden");
+    document.getElementById("encouragementCard").classList.add("hidden");
+    document.getElementById("tipsCard").classList.add("hidden");
+    document.getElementById("praiseCard").classList.add("hidden");
+    document.getElementById("outputPlaceholder").classList.remove("hidden");
+}
 
 // =========================================
 // File -> Base64
@@ -1234,9 +1287,9 @@ saveImageBtn.addEventListener("click", async () => {
         // 2. 标题头
         const header = document.createElement("div");
         header.innerHTML = `
-            <div style="text-align: center; margin-bottom: 32px;">
-                <h1 style="font-size: 28px; font-weight: 800; color: #1D1D1F; margin: 0 0 8px; letter-spacing: -0.02em; font-family: var(--font-heading);">AI 摄影评价</h1>
-                <p style="font-size: 14px; color: #86868B; margin: 0; font-family: var(--font-base);">Powered by KIMI & OpenAI</p>
+            <div id="exportHeader" style="text-align: center; margin-bottom: 32px;">
+                <h1 style="font-size: 28px; font-weight: 600; color: #1D1D1F; margin: 0 0 8px; letter-spacing: -0.02em; font-family: var(--font-heading);">AI 摄影评价</h1>
+                <p style="font-size: 14px; color: #94949a; margin: 0; font-family: var(--font-base);">https://zhayichang.github.io/ai-photo-evaluator</p>
             </div>
         `;
         tempContainer.appendChild(header);
@@ -1269,27 +1322,33 @@ saveImageBtn.addEventListener("click", async () => {
                 if (id === "summaryCard") {
                     clone.style.borderRadius = "16px";
                     clone.style.padding = "24px";
-                    const ringSvg = clone.querySelector(".ring-svg");
-                    if (ringSvg) ringSvg.style.transform = "rotate(-90deg)";
+                    clone.style.display = "flex";
+                    clone.style.alignItems = "flex-start";
+                    clone.style.justifyContent = "space-between";
+                    clone.style.gap = "24px";
+                    clone.style.color = "#1D1D1F";
+
                     const ring = clone.querySelector("#ringProgress");
                     if (ring) {
-                        const circumference = 2 * Math.PI * 60;
+                        const circumference = 2 * Math.PI * 60; // ≈ 376.99
                         const score = parseFloat(document.getElementById("overallScore").textContent) || 0;
                         const offset = circumference - (score / 10) * circumference;
                         ring.style.transition = "none";
-                        ring.style.strokeDasharray = "377";
-                        ring.style.strokeDashoffset = offset;
+                        ring.style.strokeDasharray = circumference.toString();
+                        ring.style.strokeDashoffset = offset.toString();
+                        ring.setAttribute("stroke", "#007AFF");
                     }
-                } else if (id === "scoreGrid") {
-                    clone.style.marginBottom = "0";
-                    clone.querySelectorAll(".score-item").forEach(item => {
-                        item.style.background = "#FFFFFF";
-                    });
-                } else if (id === "analysisContainer") {
-                    clone.style.marginBottom = "0";
-                    clone.querySelectorAll(".analysis-card").forEach(card => {
-                        card.style.background = "#FFFFFF";
-                    });
+
+                    const ringTrack = clone.querySelector(".ring-track");
+                    if (ringTrack) {
+                        ringTrack.setAttribute("stroke", "#F5F5F7");
+                    }
+
+                    const ringSvg = clone.querySelector(".ring-svg");
+                    if (ringSvg) {
+                        ringSvg.style.transform = "rotate(-90deg)";
+                        ringSvg.style.transformOrigin = "center center";
+                    }
                 }
 
                 clone.querySelectorAll(".progress-fill").forEach(bar => {
@@ -1339,32 +1398,65 @@ saveImageBtn.addEventListener("click", async () => {
             onclone: (clonedDoc) => {
                 const style = clonedDoc.createElement("style");
                 style.textContent = `
-                    * { color: #1D1D1F !important; background-color: transparent !important; }
-                    .card, .score-item, .analysis-card, .tip-item, .praise-list > div, 
-                    .encouragement-card, .praise-card, .tips-card, .summary-card,
-                    .exif-display-card, .step-item, .mode-card, .upload-placeholder {
-                        background: #FFFFFF !important;
-                        border-color: rgba(0,0,0,0.08) !important;
-                        box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
-                    }
-                    .praise-card { background: linear-gradient(135deg, #F2F7FF 0%, #EDF4FF 100%) !important; border-color: rgba(0,122,255,0.16) !important; }
-                    .tips-card { background: linear-gradient(135deg, #F0F9FF 0%, #E6F4FF 100%) !important; border-color: rgba(0,122,255,0.12) !important; }
-                    .encouragement-card { background: linear-gradient(135deg, #FFF9E6 0%, #FFF5D6 100%) !important; border-color: rgba(255,193,7,0.2) !important; }
-                    .exif-tag { background: #F5F5F7 !important; border-color: rgba(0,0,0,0.08) !important; }
-                    .tag { background: #F5F5F7 !important; color: #86868B !important; border-color: rgba(0,0,0,0.08) !important; }
-                    .placeholder-card { background: linear-gradient(180deg, #F8F9FA 0%, #FFFFFF 100%) !important; }
-                    .step-item { background: #FFFFFF !important; border-color: rgba(0,122,255,0.12) !important; }
-                    .score-label, .ring-label, .placeholder-text, .upload-hint,
-                    .analysis-card > p, .analysis-section li, .mode-desc, .tip-text,
-                    .exif-tag, .step-item p, .loading-sub, .loading-stage { color: #86868B !important; }
-                    .photo-type-badge { background: rgba(0,122,255,0.08) !important; color: #007AFF !important; }
-                    .tip-icon { background: #007AFF !important; color: #FFFFFF !important; }
-                    .ring-track { stroke: #F5F5F7 !important; }
-                    .ring-progress { stroke: #007AFF !important; }
-                    .progress-track { background: #F5F5F7 !important; }
-                    .progress-fill { background: linear-gradient(90deg, #007AFF, #5AC8FA) !important; }
-                    input, select { background: #F5F5F7 !important; border-color: rgba(0,0,0,0.15) !important; color: #1D1D1F !important; }
-                `;
+                        body, div, section, article, aside, header, footer, main, nav, p, h1, h2, h3, h4, h5, h6, span, strong, em, small, label, input, select, button, ul, ol, li {
+                            color: #1D1D1F !important;
+                            background-color: transparent !important;
+                        }
+                        .card, .score-item, .analysis-card, .tip-item, .praise-list > div, 
+                        .encouragement-card, .praise-card, .tips-card, .summary-card,
+                        .exif-display-card, .step-item, .mode-card, .upload-placeholder,
+                        .title-card, .title-glass, .save-card, .result-section, .score-grid, .analysis-container {
+                            background: #FFFFFF !important;
+                            border-color: rgba(0,0,0,0.08) !important;
+                            box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
+                        }
+                        .analysis-card {
+                            border-left-width: 4px !important;
+                            border-left-style: solid !important;
+                        }
+                        .analysis-card[data-section="composition"] { border-left-color: #007AFF !important; }
+                        .analysis-card[data-section="composition"] .analysis-section li::before { background: #007AFF !important; }
+                        .analysis-card[data-section="lighting"] { border-left-color: #FF9500 !important; }
+                        .analysis-card[data-section="lighting"] .analysis-section li::before { background: #FF9500 !important; }
+                        .analysis-card[data-section="color"] { border-left-color: #FF2D55 !important; }
+                        .analysis-card[data-section="color"] .analysis-section li::before { background: #FF2D55 !important; }
+                        .analysis-card[data-section="storytelling"] { border-left-color: #AF52DE !important; }
+                        .analysis-card[data-section="storytelling"] .analysis-section li::before { background: #AF52DE !important; }
+                        .analysis-card[data-section="post_processing"] { border-left-color: #34C759 !important; }
+                        .analysis-card[data-section="post_processing"] .analysis-section li::before { background: #34C759 !important; }
+                        .praise-card { background: linear-gradient(135deg, #F2F7FF 0%, #EDF4FF 100%) !important; border-color: rgba(0,122,255,0.16) !important; }
+                        .tips-card { background: linear-gradient(135deg, #F0F9FF 0%, #E6F4FF 100%) !important; border-color: rgba(0,122,255,0.12) !important; }
+                        .encouragement-card { background: linear-gradient(135deg, #FFF9E6 0%, #FFF5D6 100%) !important; border-color: rgba(255,193,7,0.2) !important; }
+                        .exif-tag { background: #F5F5F7 !important; border-color: rgba(0,0,0,0.08) !important; }
+                        .tag { background: #F5F5F7 !important; color: #1D1D1F !important; border-color: rgba(0,0,0,0.08) !important; }
+                        .placeholder-card { background: linear-gradient(180deg, #F8F9FA 0%, #FFFFFF 100%) !important; }
+                        .step-item { background: #FFFFFF !important; border-color: rgba(0,122,255,0.12) !important; }
+                        body, .card, .placeholder-card, .analysis-card, .section-title, .summary-title,
+                        .ring-number, .ring-label, .score-label, .placeholder-text, .upload-hint,
+                        .analysis-card > p, .analysis-section li, .mode-desc, .tip-text,
+                        .exif-tag, .step-item p, .loading-sub, .loading-stage,
+                        .photo-type-badge, .tag, .tip-item, .tip-icon, .praise-list,
+                        .tips-list, .encouragement-text { color: #1D1D1F !important; }
+                        .photo-type-badge { background: rgba(0,122,255,0.08) !important; color: #007AFF !important; }
+                        .tip-icon { background: #007AFF !important; color: #FFFFFF !important; }
+                        #exportHeader h1, #exportHeader p { color: #1D1D1F !important; }
+                        :root {
+                            --bg: #F5F5F7 !important;
+                            --card: #FFFFFF !important;
+                            --card-elevated: #FFFFFF !important;
+                            --text: #1D1D1F !important;
+                            --text-secondary: #86868B !important;
+                            --accent: #007AFF !important;
+                            --accent-hover: #0051D5 !important;
+                            --accent-light: rgba(0,122,255,0.08) !important;
+                            --border: rgba(0,0,0,0.08) !important;
+                        }
+                        .ring-track { stroke: #F5F5F7 !important; }
+                        .ring-progress { stroke: #007AFF !important; }
+                        .progress-track { background: #F5F5F7 !important; }
+                        .progress-fill { background: linear-gradient(90deg, #007AFF, #5AC8FA) !important; }
+                        input, select { background: #F5F5F7 !important; border-color: rgba(0,0,0,0.15) !important; color: #1D1D1F !important; }
+                    `;
                 clonedDoc.head.appendChild(style);
             }
         });
