@@ -22,9 +22,9 @@ let loadingStageInterval = null;
 let loadingProgressInterval = null;
 
 // =========================================
-// 请求超时时间：300 秒（5 分钟）
+// 请求超时时间：55 秒（0.9 分钟）
 // =========================================
-const REQUEST_TIMEOUT_MS = 300000;
+const REQUEST_TIMEOUT_MS = 55000;
 
 // =========================================
 // Prompts
@@ -226,8 +226,8 @@ const USER_PROMPT_BEGINNER = `
 
 const MODELS = {
     moonshot: [
-        { value: "kimi-k2.6", label: "kimi-k2.6" },
         { value: "kimi-k2.5", label: "kimi-k2.5" },
+        { value: "kimi-k2.6", label: "kimi-k2.6" },
         { value: "moonshot-v1-8k-vision-preview", label: "moonshot-v1-8k-vision" },
         { value: "moonshot-v1-32k-vision-preview", label: "moonshot-v1-32k-vision" },
         { value: "moonshot-v1-128k-vision-preview", label: "moonshot-v1-128k-vision" }
