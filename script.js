@@ -41,20 +41,21 @@ const SYSTEM_PROMPT_PRO = `
 3. 不允许输出额外解释
 4. 所有评分范围为 0-10
 5. 分析必须具体专业
-6. 不要空泛夸奖
+6. 避免空泛夸奖，但不要刻意贬低作品
 7. 修改建议必须可执行
 8. 评价风格应保持专业、克制、尊重创作者
-9. 即使指出问题，也应避免尖锐、讽刺、攻击性表达
-10. 不要为了“专业感”而刻意贬低作品
-11. 优先指出作品已经成立的部分，再讨论不足
-12. 如果作品属于普通爱好者水平，应以爱好者标准评价，而不是职业比赛标准
-13. 问题分析应使用“可以进一步优化”“如果调整会更好”等建设性表达
+9. 即使指出不足，也避免尖锐、讽刺、攻击性表达
+10. 优先指出作品已经成立的部分，再讨论可优化之处
+11. 如果作品属于普通爱好者水平，应以爱好者标准评价，而不是职业比赛标准
+12. 应客观分析仍可优化的部分，但不需要刻意寻找缺点
+13. 不要对作者意图进行过度推测，除非画面具有明确表达
+14. 问题分析应使用“可以进一步优化”“如果调整会更好”等建设性表达
 
 评分参考：
-- 5-6 分：普通爱好者水平，存在明显不足但可观看
-- 7 分：完成度较好，具备明确优点
-- 8 分：优秀作品，有较强审美或表达
-- 9 分：专业级作品，具有成熟个人风格
+- 5-6 分：普通爱好者水平
+- 7 分：完成度较好
+- 8 分：优秀作品
+- 9 分：专业级作品
 - 10 分：极少使用，仅限极高水平作品
 
 请避免评分过低或过于极端。
@@ -64,7 +65,7 @@ JSON结构如下：
 {
   "photo_type": "",
   "photography_style": [],
-  "overall_summary": "控制在60字以内的精炼总体评价",
+  "overall_summary": "",
 
   "scores": {
     "composition": 0,
@@ -118,7 +119,7 @@ JSON结构如下：
     "visual_flow": "",
     "emotional_tone": "",
     "style_reference": [],
-    "professional_potential": ""
+    "development_direction": ""
   },
 
   "final_verdict": ""
@@ -138,7 +139,7 @@ const SYSTEM_PROMPT_BEGINNER = `
 5. 用通俗语言解释，避免过多专业术语
 6. 以鼓励和发现优点为主，建设性建议为辅
 7. 修改建议必须简单、对新手友好、可执行
-8. overall_summary 用一句温暖、像朋友一样的总体评价
+8. overall_summary 用一句温暖、自然的总体评价
 9. final_verdict 用一句简短的鼓励结束语
 
 JSON结构如下：
@@ -146,7 +147,7 @@ JSON结构如下：
 {
   "photo_type": "",
   "photography_style": [],
-  "overall_summary": "一句温暖、鼓励性的总体评价，像朋友一样交流",
+  "overall_summary": "",
 
   "scores": {
     "composition": 0,
@@ -160,37 +161,37 @@ JSON结构如下：
   },
 
   "composition": {
-    "analysis": "用简单的话说说构图，避免术语",
-    "strengths": ["优点1", "优点2"],
-    "problems": [],
-    "suggestions": ["简单的改进建议1"]
+    "analysis": "",
+    "strengths": [],
+    "improvements": [],
+    "suggestions": []
   },
 
   "lighting": {
     "analysis": "",
     "strengths": [],
-    "problems": [],
+    "improvements": [],
     "suggestions": []
   },
 
   "color": {
     "analysis": "",
     "strengths": [],
-    "problems": [],
+    "improvements": [],
     "suggestions": []
   },
 
   "storytelling": {
     "analysis": "",
     "strengths": [],
-    "problems": [],
+    "improvements": [],
     "suggestions": []
   },
 
   "post_processing": {
     "analysis": "",
     "strengths": [],
-    "problems": [],
+    "improvements": [],
     "suggestions": []
   },
 
@@ -200,10 +201,10 @@ JSON结构如下：
     "visual_flow": "",
     "emotional_tone": "",
     "style_reference": [],
-    "professional_potential": ""
+    "development_direction": ""
   },
 
-  "final_verdict": "一句温暖的结束语，鼓励继续拍摄"
+  "final_verdict": ""
 }
 `;
 
@@ -220,7 +221,10 @@ const USER_PROMPT_PRO = `
 - 摄影风格
 - 专业完成度
 
-应客观分析仍可优化的部分，但不需要刻意寻找缺点。
+请保持客观、建设性的语气。
+优先分析作品已经成立的部分，再讨论可优化之处。
+避免使用过度否定或攻击性的表达。
+
 总体评价请控制在60字以内，要求精炼。
 `;
 
@@ -249,9 +253,7 @@ const MODELS = {
     ],
     openai: [
         { value: "gpt-4o", label: "gpt-4o" },
-        { value: "gpt-4o-mini", label: "gpt-4o-mini" },
-        { value: "gpt-5.2", label: "gpt-5.2" },
-        { value: "gpt-5.2-mini", label: "gpt-5.2-mini" }
+        { value: "gpt-4o-mini", label: "gpt-4o-mini" }
     ]
 };
 
@@ -552,7 +554,7 @@ analyzeBtn.addEventListener("click", async () => {
             },
             body: JSON.stringify({
                 model: modelName,
-                temperature: 1,
+                temperature: 0.5,
                 response_format: { type: "json_object" },
                 messages: [
                     { role: "system", content: systemPrompt },
@@ -777,7 +779,7 @@ function renderResultProfessional(result) {
         visual_flow: "视觉流动",
         emotional_tone: "情绪基调",
         style_reference: "风格参考",
-        professional_potential: "专业潜力"
+        development_direction: "发展方向"
     };
 
     Object.entries(advancedMap).forEach(([key, title]) => {
