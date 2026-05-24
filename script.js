@@ -1,9 +1,489 @@
+const imageInput = document.getElementById("imageInput");
+const replaceBtn = document.getElementById("replaceBtn");
+const previewImage = document.getElementById("previewImage");
+const previewContainer = document.getElementById("previewContainer");
+const uploadPlaceholder = document.getElementById("uploadPlaceholder");
+const uploadLoading = document.getElementById("uploadLoading");
+const analyzeBtn = document.getElementById("analyzeBtn");
+const analyzeBtnText = document.getElementById("analyzeBtnText");
+const dropZone = document.getElementById("dropZone");
+const providerSelect = document.getElementById("provider");
+const modelSelect = document.getElementById("modelName");
+
+const loadingSection = document.getElementById("loadingSection");
+const loadingText = document.getElementById("loadingText");
+const loadingSub = document.getElementById("loadingSub");
+const loadingStage = document.getElementById("loadingStage");
+const resultSection = document.getElementById("resultSection");
+
+let selectedFile = null;
+let currentMode = "beginner";
+let loadingStageInterval = null;
+let loadingProgressInterval = null;
+let extractedExif = null;
+
 // =========================================
-// Main: UI behavior, analysis flow, renders
-// Requires: globals.js, prompts.js, exif.js, utils.js
+// 请求超时时间：300 秒（5 分钟）
+// =========================================
+const REQUEST_TIMEOUT_MS = 300000;
+
+// =========================================
+// 自动回填保存的 API Key
+// =========================================
+const savedApiKey = localStorage.getItem("ai_photo_api_key");
+if (savedApiKey) {
+    document.getElementById("apiKey").value = savedApiKey;
+}
+
+// =========================================
+// EXIF 提取器（轻量 JPEG 解析，纯本地）
 // =========================================
 
-// Mode switcher (uses elements from globals)
+function extractExif(file) {
+    return new Promise((resolve) => {
+        if (!file.type.startsWith("image/jpeg")) {
+            resolve(null);
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const data = new Uint8Array(e.target.result);
+            const exif = parseExif(data);
+            resolve(exif);
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+function parseExif(data) {
+    let offset = 0;
+    if (data[0] !== 0xFF || data[1] !== 0xD8) return null;
+    offset = 2;
+    while (offset < data.length) {
+        if (data[offset] !== 0xFF) return null;
+        const marker = data[offset + 1];
+        if (marker === 0xE1) {
+            const length = (data[offset + 2] << 8) | data[offset + 3];
+            const exifData = data.slice(offset + 4, offset + 2 + length);
+            if (exifData[0] === 0x45 && exifData[1] === 0x78 && exifData[2] === 0x69 && exifData[3] === 0x66) {
+                return parseExifIFD(exifData.slice(6));
+            }
+            return null;
+        }
+        if (marker === 0xD9) return null;
+        if (marker === 0xD8 || marker === 0xD9) return null;
+        if (marker === 0x01 || (marker >= 0xD0 && marker <= 0xD7)) {
+            offset += 2;
+            continue;
+        }
+        const length = (data[offset + 2] << 8) | data[offset + 3];
+        offset += 2 + length;
+    }
+    return null;
+}
+
+function parseExifIFD(data) {
+    const tiff = data;
+    let littleEndian = true;
+    if (tiff[0] === 0x49 && tiff[1] === 0x49) littleEndian = true;
+    else if (tiff[0] === 0x4D && tiff[1] === 0x4D) littleEndian = false;
+    else return null;
+
+    const ifdOffset = readUint32(tiff, 4, littleEndian);
+    return readIFD(tiff, ifdOffset, littleEndian);
+}
+
+function readIFD(tiff, offset, littleEndian) {
+    const numEntries = readUint16(tiff, offset, littleEndian);
+    const result = {};
+    offset += 2;
+    for (let i = 0; i < numEntries; i++) {
+        const tag = readUint16(tiff, offset, littleEndian);
+        const type = readUint16(tiff, offset + 2, littleEndian);
+        const count = readUint32(tiff, offset + 4, littleEndian);
+        const valueOffset = readUint32(tiff, offset + 8, littleEndian);
+        const value = readValue(tiff, tag, type, count, valueOffset, littleEndian, offset + 8);
+
+        // Exif 子 IFD 与 GPS IFD 指针
+        if ((tag === 0x8769 || tag === 0x8825) && type === 4 && count === 1 && valueOffset > 0) {
+            const subExif = readIFD(tiff, valueOffset, littleEndian);
+            Object.assign(result, subExif);
+        }
+
+        if (value !== null) {
+            const key = getExifTagName(tag);
+            if (key) result[key] = value;
+        }
+        offset += 12;
+    }
+    return result;
+}
+
+function readUint16(data, offset, littleEndian) {
+    if (littleEndian) return data[offset] | (data[offset + 1] << 8);
+    return (data[offset] << 8) | data[offset + 1];
+}
+
+function readUint32(data, offset, littleEndian) {
+    if (littleEndian) {
+        return data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16) | (data[offset + 3] << 24);
+    }
+    return (data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3];
+}
+
+function readValue(data, tag, type, count, valueOffset, littleEndian, inlineOffset) {
+    const sizes = [0, 1, 1, 2, 4, 8, 1, 1, 2, 4, 8, 4, 8];
+    const size = sizes[type] || 0;
+    const totalSize = size * count;
+    const offset = totalSize <= 4 ? inlineOffset : valueOffset;
+
+    if (type === 2) {
+        let str = "";
+        for (let i = 0; i < count - 1; i++) {
+            str += String.fromCharCode(data[offset + i]);
+        }
+        return str.trim();
+    }
+    if (type === 3) {
+        if (count === 1) return readUint16(data, offset, littleEndian);
+        const arr = [];
+        for (let i = 0; i < count; i++) {
+            arr.push(readUint16(data, offset + i * 2, littleEndian));
+        }
+        return arr;
+    }
+    if (type === 5) {
+        const num = readUint32(data, offset, littleEndian);
+        const den = readUint32(data, offset + 4, littleEndian);
+        if (den === 0) return null;
+        return num / den;
+    }
+    if (type === 10) {
+        const num = readInt32(data, offset, littleEndian);
+        const den = readInt32(data, offset + 4, littleEndian);
+        if (den === 0) return null;
+        return num / den;
+    }
+    if (type === 1 || type === 7) {
+        if (count === 1) return data[offset];
+        const arr = [];
+        for (let i = 0; i < count; i++) arr.push(data[offset + i]);
+        return arr;
+    }
+    return null;
+}
+
+function readInt32(data, offset, littleEndian) {
+    const val = readUint32(data, offset, littleEndian);
+    return val > 0x7FFFFFFF ? val - 0x100000000 : val;
+}
+
+function getExifTagName(tag) {
+    const map = {
+        0x010F: "camera",
+        0x0110: "cameraModel",
+        0x0112: "orientation",
+        0x0100: "imageWidth",
+        0x0101: "imageHeight",
+        0x0132: "dateTime",
+        0x9003: "dateTimeOriginal",
+        0x9004: "dateTimeDigitized",
+        0x829A: "exposureTime",
+        0x829D: "fNumber",
+        0x8827: "iso",
+        0x9202: "apertureValue",
+        0x9201: "shutterSpeedValue",
+        0x920A: "focalLength",
+        0xA433: "lensMake",
+        0xA434: "lensModel",
+        0x8822: "exposureProgram",
+        0x9207: "meteringMode",
+        0x9209: "flash",
+        0xA406: "sceneCaptureType",
+        0xA405: "focalLengthIn35mmFilm",
+        0xA402: "recommendedExposureIndex",
+        0xA403: "sensingMethod",
+        0xA430: "cameraOwnerName",
+        0x0131: "software",
+        0x9000: "exifVersion",
+        0x9204: "spectralSensitivity",
+        0xA000: "flashpixVersion",
+        0xA001: "colorSpace",
+        0xA002: "pixelXDimension",
+        0xA003: "pixelYDimension",
+        0xA420: "imageUniqueID",
+        0x8825: "gpsInfo",
+        0x0000: "gpsVersion",
+        0x0001: "gpsLatitudeRef",
+        0x0002: "gpsLatitude",
+        0x0003: "gpsLongitudeRef",
+        0x0004: "gpsLongitude",
+        0x0005: "gpsAltitudeRef",
+        0x0006: "gpsAltitude",
+        0x001D: "gpsDateStamp"
+    };
+    return map[tag] || null;
+}
+
+function formatExif(exif) {
+    if (!exif) return null;
+    const fmt = {};
+    if (exif.camera) fmt.camera = exif.camera;
+    if (exif.cameraModel) fmt.camera = (fmt.camera ? fmt.camera + " " : "") + exif.cameraModel;
+    if (exif.lensMake || exif.lensModel) {
+        fmt.lens = (exif.lensMake || "") + " " + (exif.lensModel || "");
+        fmt.lens = fmt.lens.trim() || "未知";
+    }
+    if (exif.fNumber) {
+        fmt.aperture = "f/" + Number(exif.fNumber).toFixed(1);
+    } else if (exif.apertureValue) {
+        const f = Math.pow(2, exif.apertureValue / 2);
+        fmt.aperture = "f/" + f.toFixed(1);
+    }
+    if (exif.exposureTime) {
+        fmt.shutterSpeed = typeof exif.exposureTime === "number"
+            ? (exif.exposureTime < 1 ? "1/" + Math.round(1 / exif.exposureTime) + "s" : exif.exposureTime.toFixed(1) + "s")
+            : exif.exposureTime;
+    } else if (exif.shutterSpeedValue) {
+        const s = Math.pow(2, -exif.shutterSpeedValue);
+        fmt.shutterSpeed = s < 1 ? "1/" + Math.round(1 / s) + "s" : s.toFixed(1) + "s";
+    }
+    if (exif.iso) fmt.iso = "ISO " + exif.iso;
+    if (exif.focalLength) fmt.focalLength = exif.focalLength + "mm";
+    if (exif.focalLengthIn35mmFilm) fmt.focalLength35 = exif.focalLengthIn35mmFilm + "mm (35mm 等效)";
+    if (exif.imageWidth && exif.imageHeight) fmt.resolution = exif.imageWidth + " × " + exif.imageHeight;
+    if (exif.dateTimeOriginal) fmt.dateTime = normalizeExifDateTime(exif.dateTimeOriginal);
+    else if (exif.dateTime) fmt.dateTime = normalizeExifDateTime(exif.dateTime);
+    if (exif.exposureProgram) {
+        const programs = {
+            0: "拍摄模式未定义",
+            1: "手动模式",
+            2: "普通模式",
+            3: "光圈优先",
+            4: "快门优先",
+            5: "创意程序",
+            6: "动作模式",
+            7: "全景模式"
+        };
+        fmt.exposureProgram = programs[exif.exposureProgram] || "未知";
+    }
+    if (exif.meteringMode) {
+        const modes = {
+            0: "未知测光模式",
+            1: "平均测光",
+            2: "中央重点测光",
+            3: "点测光",
+            4: "局部测光",
+            5: "多点测光",
+            6: "场景测光",
+            255: "其他测光模式"
+        };
+        fmt.metering = modes[exif.meteringMode] || "未知";
+    }
+    if (exif.flash !== undefined) {
+        const flash = Number(exif.flash);
+        const fired = (flash & 1) !== 0;
+        fmt.flash = fired ? "闪光灯已触发" : "闪光灯未触发";
+    }
+    if (exif.whiteBalance !== undefined) {
+        fmt.whiteBalance = exif.whiteBalance === 1 ? "手动白平衡" : "自动白平衡";
+    }
+    if (exif.orientation) {
+        const orientations = {
+            1: "正常",
+            2: "水平翻转",
+            3: "旋转 180°",
+            4: "垂直翻转",
+            5: "顺时针 90° + 水平翻转",
+            6: "顺时针 90°",
+            7: "逆时针 90° + 水平翻转",
+            8: "逆时针 90°"
+        };
+        fmt.orientation = orientations[exif.orientation] || "未知";
+    }
+    if (exif.cameraOwnerName) fmt.owner = exif.cameraOwnerName;
+    if (exif.software) fmt.software = exif.software;
+    if (exif.gpsLatitude && exif.gpsLatitudeRef && exif.gpsLongitude && exif.gpsLongitudeRef) {
+        fmt.gps = `${formatGpsCoordinate(exif.gpsLatitude, exif.gpsLatitudeRef)}, ${formatGpsCoordinate(exif.gpsLongitude, exif.gpsLongitudeRef)}`;
+    }
+    return fmt;
+}
+
+function formatGpsCoordinate(value, ref) {
+    if (!Array.isArray(value) || value.length < 3) return "";
+    const [deg, min, sec] = value;
+    const degrees = Number(deg);
+    const minutes = Number(min);
+    const seconds = Number(sec);
+    return `${ref} ${degrees}°${minutes}′${seconds.toFixed(1)}″`;
+}
+
+function normalizeExifDateTime(value) {
+    if (!value || typeof value !== "string") return value;
+    const trimmed = value.trim();
+    const match = trimmed.match(/^(\d{4})[:\-\.](\d{2})[:\-\.](\d{2})(.*)$/);
+    if (match) {
+        return `${match[1]}.${match[2]}.${match[3]}${match[4]}`;
+    }
+    return trimmed;
+}
+
+// =========================================
+// Prompts
+// =========================================
+
+const SYSTEM_PROMPT_PRO = `
+你是一名专业摄影评论家与视觉艺术导师。
+
+【分析流程】
+1. 先判断摄影类型（风光、人像、人文纪实、街头、建筑、微距、静物、动物、运动、夜景/天文等）。
+2. 基于类型调用对应评价维度，不同类侧重点不同：
+   - 风光：构图层次、光影氛围、色彩和谐、前景/中景/远景关系。
+   - 人像：情绪表达、眼神/姿态、背景与主体关系、肤色还原、焦外质量。
+   - 人文/纪实：瞬间抓取、故事性、环境信息、时代感。
+   - 街头：决定性瞬间、光影几何、环境张力、戏剧性。
+   - 建筑：线条透视、空间结构、光影切割、材质表现。
+   - 微距/静物：细节质感、景深控制、布光、背景纯净度。
+   - 动物/生态：动态捕捉、眼神光、环境融合。
+   - 夜景/天文：曝光控制、星点/光轨质量、暗部噪点、地景与天空平衡。
+3. 在 photo_type 字段写明判断的类型。
+
+【输出规则】
+- 必须输出合法 JSON，不允许 Markdown，不允许额外解释。
+- 所有评分 0-10，客观诚实，允许各维度拉开差距。
+- 以爱好者标准评价普通作品，不刻意找缺点，不攻击创作者。
+- 优先指出作品成立的部分，再讨论可优化之处。
+- 构图、光影、色彩分析同时考虑前期与后期，不单独输出"后期"维度。
+- 使用"可以进一步优化""如果调整会更好"等建设性表达。
+
+【评分参考】
+- 1-3：基础缺失或严重失误。
+- 4-5：爱好者普通水平，有明显不足。
+- 6：及格，完整但缺乏亮点。
+- 7：良好，有可取之处。
+- 8：优秀，至少一个维度突出。
+- 9：出色，接近专业水准。
+- 10：卓越，具艺术感染力。
+
+【评分原则】
+- 该高则高、该低则低，综合评分不是平均分，可偏向最突出或最拖后腿的维度。
+
+JSON结构如下：
+{
+  "photo_type": "",
+  "photography_style": [],
+  "overall_summary": "",
+  "scores": { "composition": 0, "lighting": 0, "color": 0, "storytelling": 0, "overall": 0 },
+  "composition": { "analysis": "", "strengths": [], "improvements": [], "suggestions": [] },
+  "lighting": { "analysis": "", "strengths": [], "improvements": [], "suggestions": [] },
+  "color": { "analysis": "", "strengths": [], "improvements": [], "suggestions": [] },
+  "storytelling": { "analysis": "", "strengths": [], "improvements": [], "suggestions": [] },
+  "advanced_analysis": { "visual_focus": "", "depth_and_layers": "", "visual_flow": "", "emotional_tone": "", "style_reference": [] }
+}
+`;
+
+const SYSTEM_PROMPT_BEGINNER = `
+你是一名热情的摄影爱好者导师，擅长用温暖、易懂的语言帮助新手发现照片的美好。
+
+【分析流程】
+1. 先判断照片类型（风光、人像、人文、街头、建筑、微距、动物、夜景等）。
+2. 从该类最打动人的角度分析，不用面面俱到：
+   - 风光多聊构图和天气氛围；
+   - 人像多聊情绪和眼神；
+   - 人文多聊故事感和瞬间。
+3. 用新手能听懂的话，像朋友一样交流。
+
+【输出规则】
+- 必须输出合法 JSON，不允许 Markdown，不允许额外解释。
+- 评分 0-10，诚实但稍微宽容。
+- 通俗语言，避免专业术语。
+- 以鼓励和发现优点为主，建议简单、可执行。
+- overall_summary 温暖自然，控制在 30 字以内。。
+
+JSON结构如下：
+{
+  "photo_type": "",
+  "photography_style": [],
+  "overall_summary": "",
+  "scores": { "composition": 0, "lighting": 0, "color": 0, "storytelling": 0, "overall": 0 },
+  "composition": { "analysis": "", "strengths": [], "improvements": [], "suggestions": [] },
+  "lighting": { "analysis": "", "strengths": [], "improvements": [], "suggestions": [] },
+  "color": { "analysis": "", "strengths": [], "improvements": [], "suggestions": [] },
+  "storytelling": { "analysis": "", "strengths": [], "improvements": [], "suggestions": [] },
+  "advanced_analysis": { "visual_focus": "", "depth_and_layers": "", "visual_flow": "", "emotional_tone": "", "style_reference": [] }
+}
+`;
+
+const USER_PROMPT_PRO = `
+请对这张摄影作品进行完整专业评价。
+
+重点分析：构图、光线、色彩、情绪、叙事、摄影风格、专业完成度。
+总体评价控制在60字以内，要求精炼。
+`;
+
+const USER_PROMPT_BEGINNER = `
+请对这张摄影作品进行友好、鼓励性的评价。
+
+像朋友一样和拍摄者聊聊：
+- 这张照片最打动人的地方是什么？
+- 有哪些值得表扬的优点？
+- 给新手一两个简单、好上手的改进建议
+`;
+
+// =========================================
+// Provider & Model Switcher
+// =========================================
+
+const MODELS = {
+    moonshot: [
+        { value: "kimi-k2.6", label: "kimi-k2.6" },
+        { value: "kimi-k2.5", label: "kimi-k2.5" },
+        { value: "moonshot-v1-8k-vision-preview", label: "moonshot-v1-8k-vision" },
+        { value: "moonshot-v1-32k-vision-preview", label: "moonshot-v1-32k-vision" },
+        { value: "moonshot-v1-128k-vision-preview", label: "moonshot-v1-128k-vision" }
+    ],
+    openai: [
+        { value: "gpt-4o", label: "gpt-4o" },
+        { value: "gpt-4o-mini", label: "gpt-4o-mini" }
+    ]
+};
+
+const API_ENDPOINTS = {
+    moonshot: "https://api.moonshot.cn/v1/chat/completions",
+    openai: "https://api.openai.com/v1/chat/completions"
+};
+
+function populateModels(provider) {
+    modelSelect.innerHTML = "";
+    const models = MODELS[provider] || MODELS.moonshot;
+    models.forEach((m, i) => {
+        const opt = document.createElement("option");
+        opt.value = m.value;
+        opt.textContent = m.label;
+        if (i === 0) opt.selected = true;
+        modelSelect.appendChild(opt);
+    });
+}
+
+// Initialize
+populateModels("moonshot");
+
+providerSelect.addEventListener("change", () => {
+    populateModels(providerSelect.value);
+});
+
+document.getElementById("apiKey").addEventListener("blur", (e) => {
+    const val = e.target.value.trim();
+    if (val) {
+        localStorage.setItem("ai_photo_api_key", val);
+    }
+});
+
+// =========================================
+// Mode Switcher
+// =========================================
+
 document.querySelectorAll(".mode-card").forEach(card => {
     card.addEventListener("click", () => {
         document.querySelectorAll(".mode-card").forEach(c => c.classList.remove("active"));
@@ -23,7 +503,10 @@ document.querySelectorAll(".mode-card").forEach(card => {
     });
 });
 
-// Upload handlers
+// =========================================
+// Upload & Drag-Drop (with compression)
+// =========================================
+
 function handleFile(file) {
     if (!file || !file.type.startsWith("image/")) {
         alert("请选择有效的图片文件");
@@ -37,11 +520,10 @@ function handleFile(file) {
     uploadLoading.classList.remove("hidden");
     previewContainer.classList.add("hidden");
 
-    // 并行提取 EXIF
+    // 并行提取 EXIF，无论有没有都调用 renderExifCard，确保旧卡片被清理
     extractExif(file).then(exif => {
         extractedExif = formatExif(exif);
         renderExifCard(extractedExif);
-
     });
 
     if (file.size > 25 * 1024 * 1024) {
@@ -76,6 +558,102 @@ function useOriginalFile(file) {
     reader.readAsDataURL(file);
 }
 
+function compressImage(file, maxWidth, quality) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            let { width, height } = img;
+
+            if (width > maxWidth || height > maxWidth) {
+                if (width > height) {
+                    height = Math.round(height * maxWidth / width);
+                    width = maxWidth;
+                } else {
+                    width = Math.round(width * maxWidth / height);
+                    height = maxWidth;
+                }
+            }
+
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const dataUrl = canvas.toDataURL("image/jpeg", quality);
+            resolve(dataUrl);
+        };
+
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error("图片加载失败"));
+        };
+
+        img.src = url;
+    });
+}
+
+function dataUrlToFile(dataUrl, filename) {
+    const arr = dataUrl.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], filename, { type: mime });
+}
+
+// =========================================
+// EXIF 展示卡片（上传后本地显示）
+// =========================================
+
+function renderExifCard(exif) {
+    // 无论有没有数据，先清理旧卡片
+    let existing = document.getElementById("exifDisplayCard");
+    if (existing) existing.remove();
+
+    // 没有有效数据就不创建新卡片
+    if (!exif || Object.keys(exif).length === 0) return;
+
+    const card = document.createElement("div");
+    card.id = "exifDisplayCard";
+    card.className = "card exif-display-card";
+
+    const items = [];
+    if (exif.camera) items.push(`<span class="exif-tag">📷 ${exif.camera}</span>`);
+    if (exif.lens) items.push(`<span class="exif-tag">🔭 ${exif.lens}</span>`);
+    if (exif.aperture) items.push(`<span class="exif-tag">🔍 ${exif.aperture}</span>`);
+    if (exif.shutterSpeed) items.push(`<span class="exif-tag">⏱ ${exif.shutterSpeed}</span>`);
+    if (exif.iso) items.push(`<span class="exif-tag">⚡ ${exif.iso}</span>`);
+    if (exif.focalLength) items.push(`<span class="exif-tag">📐 ${exif.focalLength}</span>`);
+    if (exif.focalLength35) items.push(`<span class="exif-tag">35mm 等效: ${exif.focalLength35}</span>`);
+    if (exif.resolution) items.push(`<span class="exif-tag">🖼 ${exif.resolution}</span>`);
+    if (exif.dateTime) items.push(`<span class="exif-tag">📅 ${exif.dateTime}</span>`);
+    if (exif.exposureProgram) items.push(`<span class="exif-tag">🎚 ${exif.exposureProgram}</span>`);
+    if (exif.metering) items.push(`<span class="exif-tag">🧭 ${exif.metering}</span>`);
+    if (exif.flash) items.push(`<span class="exif-tag">⚡ ${exif.flash}</span>`);
+    if (exif.whiteBalance) items.push(`<span class="exif-tag">🎨 ${exif.whiteBalance}</span>`);
+    if (exif.orientation) items.push(`<span class="exif-tag">🔄 ${exif.orientation}</span>`);
+    if (exif.owner) items.push(`<span class="exif-tag">👤 ${exif.owner}</span>`);
+    if (exif.software) items.push(`<span class="exif-tag">💻 ${exif.software}</span>`);
+    if (exif.gps) items.push(`<span class="exif-tag">📍 ${exif.gps}</span>`);
+
+    if (items.length === 0) return;
+
+    card.innerHTML = `
+        <h3 class="section-title" style="font-size: 16px; margin-bottom: 20px;">拍摄参数</h3>
+        <div class="exif-tags">${items.join("")}</div>
+    `;
+
+    const uploadCard = document.getElementById("dropZone");
+    uploadCard.parentNode.insertBefore(card, uploadCard.nextSibling);
+}
+
 replaceBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     imageInput.click();
@@ -105,7 +683,62 @@ dropZone.addEventListener("drop", (e) => {
 
 uploadPlaceholder.addEventListener("click", () => imageInput.click());
 
-// Analyze button
+// =========================================
+// Loading Animation
+// =========================================
+
+function startFakeProgress() {
+    const bar = document.getElementById("loadingProgress");
+    bar.style.width = "0%";
+    bar.style.transition = "width 0.8s cubic-bezier(0.22, 1, 0.36, 1)";
+
+    setTimeout(() => bar.style.width = "15%", 300);
+
+    let progress = 15;
+    loadingProgressInterval = setInterval(() => {
+        if (progress < 90) {
+            progress += Math.random() * 5 + 2;
+            if (progress > 90) progress = 90;
+            bar.style.width = progress + "%";
+        }
+    }, 8000);
+}
+
+function startStageRotation() {
+    const stages = currentMode === "professional"
+        ? ["正在识别照片类型...", "正在分析构图...", "正在评估光影...", "正在整理色彩...", "正在感受情绪与叙事...", "正在生成专业评价..."]
+        : ["正在认识这张照片...", "正在寻找闪光点...", "正在感受照片的情绪...", "正在整理小建议...", "正在为你写寄语..."];
+
+    let i = 0;
+    loadingStage.textContent = stages[0];
+
+    loadingStageInterval = setInterval(() => {
+        i = (i + 1) % stages.length;
+        loadingStage.style.opacity = 0;
+        setTimeout(() => {
+            loadingStage.textContent = stages[i];
+            loadingStage.style.opacity = 1;
+        }, 300);
+    }, 8000);
+}
+
+function stopLoadingAnimation() {
+    clearInterval(loadingStageInterval);
+    clearInterval(loadingProgressInterval);
+
+    const bar = document.getElementById("loadingProgress");
+    bar.style.transition = "width 0.3s ease";
+    bar.style.width = "100%";
+
+    setTimeout(() => {
+        bar.style.width = "0%";
+    }, 500);
+}
+
+// =========================================
+// Analyze (direct API call with user key)
+// =========================================
+
 analyzeBtn.addEventListener("click", async () => {
     const apiKey = document.getElementById("apiKey").value.trim();
     const modelName = document.getElementById("modelName").value.trim();
@@ -156,7 +789,7 @@ analyzeBtn.addEventListener("click", async () => {
     const systemPrompt = currentMode === "professional" ? SYSTEM_PROMPT_PRO : SYSTEM_PROMPT_BEGINNER;
     const userPrompt = currentMode === "professional" ? USER_PROMPT_PRO : USER_PROMPT_BEGINNER;
 
-    // EXIF 文本：如果读取到了信息，则附加到 AI 分析提示中
+    // EXIF 文本：有则附加，无则明确告知 AI
     let exifText = "";
     if (extractedExif && Object.keys(extractedExif).length > 0) {
         exifText = `
@@ -309,7 +942,44 @@ function resetAnalysisState() {
     document.getElementById("outputPlaceholder").classList.remove("hidden");
 }
 
-// Render functions
+// =========================================
+// File -> Base64
+// =========================================
+
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+    });
+}
+
+// =========================================
+// Shared: Ring Animation
+// =========================================
+
+function animateRing(score) {
+    const circle = document.getElementById("ringProgress");
+    const radius = 60;
+    const circumference = 2 * Math.PI * radius;
+    const offset = circumference - (score / 10) * circumference;
+
+    circle.style.transition = "none";
+    circle.style.strokeDashoffset = circumference;
+
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            circle.style.transition = "stroke-dashoffset 1.5s cubic-bezier(0.22, 1, 0.36, 1)";
+            circle.style.strokeDashoffset = offset;
+        });
+    });
+}
+
+// =========================================
+// Professional Render
+// =========================================
+
 function renderResultProfessional(result) {
     resultSection.classList.remove("hidden");
 
@@ -412,6 +1082,10 @@ function renderResultProfessional(result) {
     }, 200);
 }
 
+// =========================================
+// Beginner Render
+// =========================================
+
 function renderResultBeginner(result) {
     resultSection.classList.remove("hidden");
 
@@ -487,7 +1161,26 @@ function renderResultBeginner(result) {
     }, 200);
 }
 
-// Save image (long screenshot)
+// =========================================
+// Render List Helper
+// =========================================
+
+function renderListSection(title, items = []) {
+    if (!items.length) return "";
+    return `
+        <div class="analysis-section">
+            <h4>${title}</h4>
+            <ul>
+                ${items.map(item => `<li>${item}</li>`).join("")}
+            </ul>
+        </div>
+    `;
+}
+
+// =========================================
+// Save Result as Image (Long Screenshot)
+// =========================================
+
 const saveImageBtn = document.getElementById("saveImageBtn");
 
 saveImageBtn.addEventListener("click", async () => {
