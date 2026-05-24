@@ -400,7 +400,7 @@ const SYSTEM_PROMPT_BEGINNER = `
 - 评分 0-10，诚实但稍微宽容。
 - 通俗语言，避免专业术语。
 - 以鼓励和发现优点为主，建议简单、可执行。
-- overall_summary 温暖自然，控制在 30 字以内。
+- overall_summary 温暖自然，控制在 50 字以内。
 
 JSON结构如下：
 {
