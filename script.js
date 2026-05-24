@@ -21,6 +21,7 @@ let currentMode = "beginner";
 let loadingStageInterval = null;
 let loadingProgressInterval = null;
 let extractedExif = null;
+let isAnalyzing = false;
 
 // =========================================
 // 请求超时时间：300 秒（5 分钟）
@@ -508,6 +509,10 @@ document.querySelectorAll(".mode-card").forEach(card => {
 // =========================================
 
 function handleFile(file) {
+    if (isAnalyzing) {
+        alert("AI 正在分析中，请等待完成后再上传新图片");
+        return;
+    }
     if (!file || !file.type.startsWith("image/")) {
         alert("请选择有效的图片文件");
         return;
@@ -654,6 +659,10 @@ function renderExifCard(exif) {
 
 replaceBtn.addEventListener("click", (e) => {
     e.stopPropagation();
+    if (isAnalyzing) {
+        alert("AI 正在分析中，请等待完成后再更换图片");
+        return;
+    }
     imageInput.click();
 });
 
@@ -675,11 +684,21 @@ dropZone.addEventListener("dragleave", () => {
 dropZone.addEventListener("drop", (e) => {
     e.preventDefault();
     dropZone.classList.remove("drag-over");
+    if (isAnalyzing) {
+        alert("AI 正在分析中，请等待完成后再上传新图片");
+        return;
+    }
     const file = e.dataTransfer.files[0];
     if (file) handleFile(file);
 });
 
-uploadPlaceholder.addEventListener("click", () => imageInput.click());
+uploadPlaceholder.addEventListener("click", () => {
+    if (isAnalyzing) {
+        alert("AI 正在分析中，请等待完成后再上传新图片");
+        return;
+    }
+    imageInput.click();
+});
 
 // =========================================
 // Loading Animation
@@ -754,6 +773,8 @@ analyzeBtn.addEventListener("click", async () => {
 
     // ✅ 自动保存到本地（验证通过后再存，避免存空值或错误值）
     localStorage.setItem("ai_photo_api_key", apiKey);
+
+    isAnalyzing = true;
 
     resetAnalysisState();
 
@@ -902,6 +923,7 @@ ISO：${extractedExif.iso || "未知"}
         analyzeBtn.style.opacity = "";
         analyzeBtn.style.cursor = "";
         analyzeBtnText.textContent = originalBtnText;
+        isAnalyzing = false;
     }
 });
 
@@ -1329,7 +1351,7 @@ saveImageBtn.addEventListener("click", async () => {
             onclone: (clonedDoc) => {
                 const style = clonedDoc.createElement("style");
                 style.textContent = `
-                * { animation: none !important; transition: none !important; opacity: 1 !important; }
+                        * { animation: none !important; transition: none !important; opacity: 1 !important; }
                         :root {
                             --bg: ${exportBg} !important;
                             --card: ${exportCardBg} !important;
@@ -1347,7 +1369,7 @@ saveImageBtn.addEventListener("click", async () => {
                         .card, .score-item, .analysis-card, .tip-item, .praise-list > div, 
                         .encouragement-card, .praise-card, .tips-card, .summary-card,
                         .exif-display-card, .step-item, .mode-card, .upload-placeholder,
-                        .title-card, .title-glass, .save-card, .result-section, .score-grid, .analysis-container {
+                        .title-card, .title-glass, .save-card {
                             background: ${exportCardBg} !important;
                             border-color: ${exportBorder} !important;
                             box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
@@ -1364,8 +1386,6 @@ saveImageBtn.addEventListener("click", async () => {
                         .analysis-card[data-section="color"] .analysis-section li::before { background: #FF2D55 !important; }
                         .analysis-card[data-section="storytelling"] { border-left-color: #AF52DE !important; }
                         .analysis-card[data-section="storytelling"] .analysis-section li::before { background: #AF52DE !important; }
-                        .analysis-card[data-section="post_processing"] { border-left-color: #34C759 !important; }
-                        .analysis-card[data-section="post_processing"] .analysis-section li::before { background: #34C759 !important; }
                         .praise-card { background: ${exportPraiseBg} !important; border-color: ${isDarkMode ? 'rgba(90,200,255,0.16)' : 'rgba(0,122,255,0.16)'} !important; }
                         .tips-card { background: ${exportTipsBg} !important; border-color: ${isDarkMode ? 'rgba(90,200,255,0.12)' : 'rgba(0,122,255,0.12)'} !important; }
                         .encouragement-card { background: ${exportEncourageBg} !important; border-color: ${isDarkMode ? 'rgba(255,193,7,0.24)' : 'rgba(255,193,7,0.2)'} !important; }
