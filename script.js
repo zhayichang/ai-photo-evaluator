@@ -734,7 +734,7 @@ function renderExifCard(exif) {
     if (items.length === 0) return;
 
     card.innerHTML = `
-        <h3 class="section-title" style="font-size: 16px; margin-bottom: 12px;">拍摄参数</h3>
+        <h3 class="section-title" style="font-size: 16px; margin-bottom: 20px;">拍摄参数</h3>
         <div class="exif-tags">${items.join("")}</div>
     `;
 
@@ -1271,6 +1271,17 @@ saveImageBtn.addEventListener("click", async () => {
     saveImageBtn.disabled = true;
 
     try {
+        const isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const exportBg = isDarkMode ? "#0b111d" : "#F5F5F7";
+        const exportCardBg = isDarkMode ? "rgba(18, 26, 45, 0.96)" : "#FFFFFF";
+        const exportText = isDarkMode ? "#F3F5F9" : "#1D1D1F";
+        const exportTextSecondary = isDarkMode ? "#9CA5B4" : "#94949a";
+        const exportBorder = isDarkMode ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+        const exportAccentLight = isDarkMode ? "rgba(90,200,255,0.12)" : "rgba(0,122,255,0.08)";
+        const exportPraiseBg = isDarkMode ? "linear-gradient(135deg, rgba(18, 26, 44, 0.95) 0%, rgba(22, 32, 52, 0.96) 100%)" : "linear-gradient(135deg, #F2F7FF 0%, #EDF4FF 100%)";
+        const exportTipsBg = isDarkMode ? "linear-gradient(135deg, rgba(14, 24, 44, 0.95) 0%, rgba(18, 28, 46, 0.95) 100%)" : "linear-gradient(135deg, #F0F9FF 0%, #E6F4FF 100%)";
+        const exportEncourageBg = isDarkMode ? "linear-gradient(135deg, rgba(32, 24, 10, 0.92) 0%, rgba(40, 32, 16, 0.94) 100%)" : "linear-gradient(135deg, #FFF9E6 0%, #FFF5D6 100%)";
+
         // 1. 离屏容器
         const tempContainer = document.createElement("div");
         tempContainer.style.cssText = `
@@ -1279,7 +1290,7 @@ saveImageBtn.addEventListener("click", async () => {
             top: 0;
             width: 800px;
             padding: 40px;
-            background: #F5F5F7;
+            background: ${exportBg};
             font-family: var(--font-base);
         `;
         document.body.appendChild(tempContainer);
@@ -1288,8 +1299,8 @@ saveImageBtn.addEventListener("click", async () => {
         const header = document.createElement("div");
         header.innerHTML = `
             <div id="exportHeader" style="text-align: center; margin-bottom: 32px;">
-                <h1 style="font-size: 28px; font-weight: 600; color: #1D1D1F; margin: 0 0 8px; letter-spacing: -0.02em; font-family: var(--font-heading);">AI 摄影评价</h1>
-                <p style="font-size: 14px; color: #94949a; margin: 0; font-family: var(--font-base);">https://zhayichang.github.io/ai-photo-evaluator</p>
+                <h1 style="font-size: 28px; font-weight: 600; color: ${exportText}; margin: 0 0 8px; letter-spacing: -0.02em; font-family: var(--font-heading);">AI 摄影评价</h1>
+                <p style="font-size: 14px; color: ${exportTextSecondary}; margin: 0; font-family: var(--font-base);">https://zhayichang.github.io/ai-photo-evaluator</p>
             </div>
         `;
         tempContainer.appendChild(header);
@@ -1316,7 +1327,7 @@ saveImageBtn.addEventListener("click", async () => {
                 if (!original) return;
                 const clone = original.cloneNode(true);
                 clone.classList.remove("hidden");
-                clone.style.background = "#FFFFFF";
+                clone.style.background = exportCardBg;
                 clone.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)";
 
                 if (id === "summaryCard") {
@@ -1326,7 +1337,7 @@ saveImageBtn.addEventListener("click", async () => {
                     clone.style.alignItems = "flex-start";
                     clone.style.justifyContent = "space-between";
                     clone.style.gap = "24px";
-                    clone.style.color = "#1D1D1F";
+                    clone.style.color = exportText;
 
                     const ring = clone.querySelector("#ringProgress");
                     if (ring) {
@@ -1341,7 +1352,7 @@ saveImageBtn.addEventListener("click", async () => {
 
                     const ringTrack = clone.querySelector(".ring-track");
                     if (ringTrack) {
-                        ringTrack.setAttribute("stroke", "#F5F5F7");
+                        ringTrack.setAttribute("stroke", isDarkMode ? "rgba(255,255,255,0.08)" : "#F5F5F7");
                     }
 
                     const ringSvg = clone.querySelector(".ring-svg");
@@ -1368,7 +1379,7 @@ saveImageBtn.addEventListener("click", async () => {
                 if (!original) return;
                 const clone = original.cloneNode(true);
                 clone.classList.remove("hidden");
-                clone.style.background = "#FFFFFF";
+                clone.style.background = exportCardBg;
                 clone.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)";
                 clone.style.borderRadius = "16px";
                 clone.style.padding = "24px";
@@ -1388,26 +1399,36 @@ saveImageBtn.addEventListener("click", async () => {
             )
         );
 
-        // 6. 截图：强制浅色模式覆盖
+        // 6. 截图：根据当前主题导出
         const canvas = await html2canvas(tempContainer, {
             scale: 2,
             useCORS: true,
             allowTaint: true,
-            backgroundColor: "#F5F5F7",
+            backgroundColor: exportBg,
             logging: false,
             onclone: (clonedDoc) => {
                 const style = clonedDoc.createElement("style");
                 style.textContent = `
+                        :root {
+                            --bg: ${exportBg} !important;
+                            --card: ${exportCardBg} !important;
+                            --card-elevated: ${exportCardBg} !important;
+                            --text: ${exportText} !important;
+                            --text-secondary: ${exportTextSecondary} !important;
+                            --border: ${exportBorder} !important;
+                            --accent-light: ${exportAccentLight} !important;
+                        }
+                        body { background-color: ${exportBg} !important; color: ${exportText} !important; }
                         body, div, section, article, aside, header, footer, main, nav, p, h1, h2, h3, h4, h5, h6, span, strong, em, small, label, input, select, button, ul, ol, li {
-                            color: #1D1D1F !important;
+                            color: ${exportText} !important;
                             background-color: transparent !important;
                         }
                         .card, .score-item, .analysis-card, .tip-item, .praise-list > div, 
                         .encouragement-card, .praise-card, .tips-card, .summary-card,
                         .exif-display-card, .step-item, .mode-card, .upload-placeholder,
                         .title-card, .title-glass, .save-card, .result-section, .score-grid, .analysis-container {
-                            background: #FFFFFF !important;
-                            border-color: rgba(0,0,0,0.08) !important;
+                            background: ${exportCardBg} !important;
+                            border-color: ${exportBorder} !important;
                             box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
                         }
                         .analysis-card {
@@ -1424,38 +1445,17 @@ saveImageBtn.addEventListener("click", async () => {
                         .analysis-card[data-section="storytelling"] .analysis-section li::before { background: #AF52DE !important; }
                         .analysis-card[data-section="post_processing"] { border-left-color: #34C759 !important; }
                         .analysis-card[data-section="post_processing"] .analysis-section li::before { background: #34C759 !important; }
-                        .praise-card { background: linear-gradient(135deg, #F2F7FF 0%, #EDF4FF 100%) !important; border-color: rgba(0,122,255,0.16) !important; }
-                        .tips-card { background: linear-gradient(135deg, #F0F9FF 0%, #E6F4FF 100%) !important; border-color: rgba(0,122,255,0.12) !important; }
-                        .encouragement-card { background: linear-gradient(135deg, #FFF9E6 0%, #FFF5D6 100%) !important; border-color: rgba(255,193,7,0.2) !important; }
-                        .exif-tag { background: #F5F5F7 !important; border-color: rgba(0,0,0,0.08) !important; }
-                        .tag { background: #F5F5F7 !important; color: #1D1D1F !important; border-color: rgba(0,0,0,0.08) !important; }
-                        .placeholder-card { background: linear-gradient(180deg, #F8F9FA 0%, #FFFFFF 100%) !important; }
-                        .step-item { background: #FFFFFF !important; border-color: rgba(0,122,255,0.12) !important; }
-                        body, .card, .placeholder-card, .analysis-card, .section-title, .summary-title,
-                        .ring-number, .ring-label, .score-label, .placeholder-text, .upload-hint,
-                        .analysis-card > p, .analysis-section li, .mode-desc, .tip-text,
-                        .exif-tag, .step-item p, .loading-sub, .loading-stage,
-                        .photo-type-badge, .tag, .tip-item, .tip-icon, .praise-list,
-                        .tips-list, .encouragement-text { color: #1D1D1F !important; }
-                        .photo-type-badge { background: rgba(0,122,255,0.08) !important; color: #007AFF !important; }
+                        .praise-card { background: ${exportPraiseBg} !important; border-color: ${isDarkMode ? 'rgba(90,200,255,0.16)' : 'rgba(0,122,255,0.16)'} !important; }
+                        .tips-card { background: ${exportTipsBg} !important; border-color: ${isDarkMode ? 'rgba(90,200,255,0.12)' : 'rgba(0,122,255,0.12)'} !important; }
+                        .encouragement-card { background: ${exportEncourageBg} !important; border-color: ${isDarkMode ? 'rgba(255,193,7,0.24)' : 'rgba(255,193,7,0.2)'} !important; }
+                        .exif-tag { background: ${isDarkMode ? 'rgba(16,24,40,0.95)' : '#F5F5F7'} !important; border-color: ${exportBorder} !important; }
+                        .tag { background: ${isDarkMode ? 'rgba(16,24,40,0.95)' : '#F5F5F7'} !important; color: ${exportText} !important; border-color: ${exportBorder} !important; }
+                        .step-item { background: ${exportCardBg} !important; border-color: ${isDarkMode ? 'rgba(90,200,255,0.12)' : 'rgba(0,122,255,0.12)'} !important; }
+                        .placeholder-card { background: ${exportCardBg} !important; }
+                        .tip-item { background: ${exportCardBg} !important; }
                         .tip-icon { background: #007AFF !important; color: #FFFFFF !important; }
-                        #exportHeader h1, #exportHeader p { color: #1D1D1F !important; }
-                        :root {
-                            --bg: #F5F5F7 !important;
-                            --card: #FFFFFF !important;
-                            --card-elevated: #FFFFFF !important;
-                            --text: #1D1D1F !important;
-                            --text-secondary: #86868B !important;
-                            --accent: #007AFF !important;
-                            --accent-hover: #0051D5 !important;
-                            --accent-light: rgba(0,122,255,0.08) !important;
-                            --border: rgba(0,0,0,0.08) !important;
-                        }
-                        .ring-track { stroke: #F5F5F7 !important; }
-                        .ring-progress { stroke: #007AFF !important; }
-                        .progress-track { background: #F5F5F7 !important; }
-                        .progress-fill { background: linear-gradient(90deg, #007AFF, #5AC8FA) !important; }
-                        input, select { background: #F5F5F7 !important; border-color: rgba(0,0,0,0.15) !important; color: #1D1D1F !important; }
+                        #exportHeader h1, #exportHeader p { color: ${exportText} !important; }
+                        input, select { background: ${isDarkMode ? 'rgba(12,18,34,0.95)' : '#F5F5F7'} !important; border-color: ${isDarkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.15)'} !important; color: ${exportText} !important; }
                     `;
                 clonedDoc.head.appendChild(style);
             }
