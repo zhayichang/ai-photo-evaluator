@@ -354,7 +354,7 @@ const SYSTEM_PROMPT_PRO = `
 - 所有评分 0-10，客观诚实，允许各维度拉开差距。
 - 以爱好者标准评价普通作品，不刻意找缺点，不攻击创作者。
 - 优先指出作品成立的部分，再讨论可优化之处。
-- 构图、光影、色彩分析同时考虑前期与后期，不单独输出"后期"维度。
+- 构图、光影、色彩分析应同时考虑前期与后期。
 - 使用"可以进一步优化""如果调整会更好"等建设性表达。
 
 【评分参考】
@@ -399,7 +399,7 @@ const SYSTEM_PROMPT_BEGINNER = `
 - 评分 0-10，诚实但稍微宽容。
 - 通俗语言，避免专业术语。
 - 以鼓励和发现优点为主，建议简单、可执行。
-- overall_summary 温暖自然，控制在 30 字以内。。
+- overall_summary 温暖自然，控制在 30 字以内。
 
 JSON结构如下：
 {
@@ -520,10 +520,11 @@ function handleFile(file) {
     uploadLoading.classList.remove("hidden");
     previewContainer.classList.add("hidden");
 
-    // 并行提取 EXIF，无论有没有都调用 renderExifCard，确保旧卡片被清理
+    // 并行提取 EXIF
     extractExif(file).then(exif => {
         extractedExif = formatExif(exif);
         renderExifCard(extractedExif);
+
     });
 
     if (file.size > 25 * 1024 * 1024) {
@@ -613,11 +614,8 @@ function dataUrlToFile(dataUrl, filename) {
 // =========================================
 
 function renderExifCard(exif) {
-    // 无论有没有数据，先清理旧卡片
     let existing = document.getElementById("exifDisplayCard");
     if (existing) existing.remove();
-
-    // 没有有效数据就不创建新卡片
     if (!exif || Object.keys(exif).length === 0) return;
 
     const card = document.createElement("div");
@@ -789,7 +787,7 @@ analyzeBtn.addEventListener("click", async () => {
     const systemPrompt = currentMode === "professional" ? SYSTEM_PROMPT_PRO : SYSTEM_PROMPT_BEGINNER;
     const userPrompt = currentMode === "professional" ? USER_PROMPT_PRO : USER_PROMPT_BEGINNER;
 
-    // EXIF 文本：有则附加，无则明确告知 AI
+    // EXIF 文本：如果读取到了信息，则附加到 AI 分析提示中
     let exifText = "";
     if (extractedExif && Object.keys(extractedExif).length > 0) {
         exifText = `
@@ -1245,6 +1243,8 @@ saveImageBtn.addEventListener("click", async () => {
                 if (!original) return;
                 const clone = original.cloneNode(true);
                 clone.classList.remove("hidden");
+                clone.style.animation = "none";
+                clone.style.opacity = "1";
                 clone.style.background = exportCardBg;
                 clone.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)";
 
@@ -1297,6 +1297,8 @@ saveImageBtn.addEventListener("click", async () => {
                 if (!original) return;
                 const clone = original.cloneNode(true);
                 clone.classList.remove("hidden");
+                clone.style.animation = "none";
+                clone.style.opacity = "1";
                 clone.style.background = exportCardBg;
                 clone.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)";
                 clone.style.borderRadius = "16px";
@@ -1327,6 +1329,7 @@ saveImageBtn.addEventListener("click", async () => {
             onclone: (clonedDoc) => {
                 const style = clonedDoc.createElement("style");
                 style.textContent = `
+                * { animation: none !important; transition: none !important; opacity: 1 !important; }
                         :root {
                             --bg: ${exportBg} !important;
                             --card: ${exportCardBg} !important;
@@ -1361,6 +1364,8 @@ saveImageBtn.addEventListener("click", async () => {
                         .analysis-card[data-section="color"] .analysis-section li::before { background: #FF2D55 !important; }
                         .analysis-card[data-section="storytelling"] { border-left-color: #AF52DE !important; }
                         .analysis-card[data-section="storytelling"] .analysis-section li::before { background: #AF52DE !important; }
+                        .analysis-card[data-section="post_processing"] { border-left-color: #34C759 !important; }
+                        .analysis-card[data-section="post_processing"] .analysis-section li::before { background: #34C759 !important; }
                         .praise-card { background: ${exportPraiseBg} !important; border-color: ${isDarkMode ? 'rgba(90,200,255,0.16)' : 'rgba(0,122,255,0.16)'} !important; }
                         .tips-card { background: ${exportTipsBg} !important; border-color: ${isDarkMode ? 'rgba(90,200,255,0.12)' : 'rgba(0,122,255,0.12)'} !important; }
                         .encouragement-card { background: ${exportEncourageBg} !important; border-color: ${isDarkMode ? 'rgba(255,193,7,0.24)' : 'rgba(255,193,7,0.2)'} !important; }
