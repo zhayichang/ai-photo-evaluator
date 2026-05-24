@@ -1111,15 +1111,6 @@ select option {
     background: #AF52DE;
 }
 
-.analysis-card[data-section="post_processing"] {
-    border-left-color: #34C759;
-}
-
-.analysis-card[data-section="post_processing"] .analysis-section li::before {
-    background: #34C759;
-}
-
-
 .praise-card {
     padding: 24px;
     background: linear-gradient(135deg, #F2F7FF 0%, #EDF4FF 100%);
