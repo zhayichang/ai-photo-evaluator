@@ -413,6 +413,13 @@ button,
     margin-bottom: 8px;
 }
 
+.form-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
 input {
     width: 100%;
     padding: 12px 14px;
@@ -689,6 +696,11 @@ select option {
 /* EXIF Display Card — 统一为白色卡片风格 */
 .exif-display-card {
     padding: 24px;
+}
+
+.exif-display-card .section-title {
+    font-size: 16px;
+    margin-bottom: 20px;
 }
 
 .exif-tags {
@@ -1239,8 +1251,47 @@ select option {
 }
 
 .save-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 24px;
     background: linear-gradient(135deg, rgba(0, 122, 255, 0.06) 0%, rgba(90, 200, 255, 0.04) 100%);
     border: 1px solid rgba(0, 122, 255, 0.12);
+}
+
+.save-card__title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.save-card__desc {
+    margin: 2px 0 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.save-card__btn {
+    width: auto;
+    margin: 0;
+    padding: 10px 20px;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.save-card__btn-icon {
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.btn-inline-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 6px;
+    border-width: 2px;
+    vertical-align: middle;
 }
 
 #saveImageBtn:disabled {

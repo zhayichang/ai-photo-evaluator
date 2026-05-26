@@ -652,7 +652,7 @@ function renderExifCard(exif) {
     if (items.length === 0) return;
 
     card.innerHTML = `
-        <h3 class="section-title" style="font-size: 16px; margin-bottom: 20px;">拍摄参数</h3>
+        <h3 class="section-title">拍摄参数</h3>
         <div class="exif-tags">${items.join("")}</div>
     `;
 
@@ -1208,7 +1208,7 @@ const saveImageBtn = document.getElementById("saveImageBtn");
 
 saveImageBtn.addEventListener("click", async () => {
     const btnText = saveImageBtn.innerHTML;
-    saveImageBtn.innerHTML = `<div class="spinner-small" style="width:16px;height:16px;border-width:2px;margin-right:6px;display:inline-block;vertical-align:middle;"></div>生成中...`;
+    saveImageBtn.innerHTML = `<div class="spinner-small btn-inline-spinner"></div>生成中...`;
     saveImageBtn.disabled = true;
 
     try {
