@@ -83,8 +83,14 @@
                     <div class="form-row api-key-row">
                         <div class="form-group">
                             <label for="apiKey">API Key</label>
-                            <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
-                            <small class="form-hint">请输入您的 API KEY，API KEY 将存储于浏览器本地。</small>
+                            <div class="input-with-actions">
+                                <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
+                                <div class="input-actions">
+                                    <button class="btn-secondary btn-inline" id="toggleApiKeyBtn" type="button">显示</button>
+                                    <button class="btn-secondary btn-inline" id="clearApiKeyBtn" type="button">清除</button>
+                                </div>
+                            </div>
+                            <small class="form-hint" id="apiKeyHint">请输入您的 API KEY，API KEY 仅存储在当前浏览器本地。</small>
                         </div>
                     </div>
                 </section>
@@ -131,6 +137,7 @@
                         <polyline points="12 5 19 12 12 19" />
                     </svg>
                 </button>
+                <p class="analyze-status" id="analyzeStatus">上传照片并填写 API Key 后，即可开始分析。</p>
 
             </div>
 
@@ -172,6 +179,17 @@
                                 <p>AI 会在右侧卡片中呈现专业分析或入门建议。</p>
                             </div>
                         </div>
+                    </div>
+                </section>
+
+                <section class="card feedback-card hidden" id="errorCard" role="alert">
+                    <div class="feedback-card__icon" id="errorCardIcon">!</div>
+                    <div class="feedback-card__content">
+                        <span class="feedback-card__eyebrow" id="errorCardType">分析未完成</span>
+                        <h3 class="section-title feedback-card__title" id="errorCardTitle">暂时还没成功拿到分析结果</h3>
+                        <p class="feedback-card__desc" id="errorCardDesc">请检查本次设置后重试。</p>
+                        <div class="feedback-card__tips" id="errorCardTips"></div>
+                        <button class="btn-secondary feedback-card__btn" id="retryAnalyzeBtn" type="button">重新分析</button>
                     </div>
                 </section>
 
