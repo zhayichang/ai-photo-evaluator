@@ -6,15 +6,26 @@ const uploadPlaceholder = document.getElementById("uploadPlaceholder");
 const uploadLoading = document.getElementById("uploadLoading");
 const analyzeBtn = document.getElementById("analyzeBtn");
 const analyzeBtnText = document.getElementById("analyzeBtnText");
+const analyzeStatus = document.getElementById("analyzeStatus");
 const dropZone = document.getElementById("dropZone");
 const providerSelect = document.getElementById("provider");
 const modelSelect = document.getElementById("modelName");
+const apiKeyInput = document.getElementById("apiKey");
+const toggleApiKeyBtn = document.getElementById("toggleApiKeyBtn");
+const clearApiKeyBtn = document.getElementById("clearApiKeyBtn");
 
 const loadingSection = document.getElementById("loadingSection");
 const loadingText = document.getElementById("loadingText");
 const loadingSub = document.getElementById("loadingSub");
 const loadingStage = document.getElementById("loadingStage");
 const resultSection = document.getElementById("resultSection");
+const outputPlaceholder = document.getElementById("outputPlaceholder");
+const errorCard = document.getElementById("errorCard");
+const errorCardType = document.getElementById("errorCardType");
+const errorCardTitle = document.getElementById("errorCardTitle");
+const errorCardDesc = document.getElementById("errorCardDesc");
+const errorCardTips = document.getElementById("errorCardTips");
+const retryAnalyzeBtn = document.getElementById("retryAnalyzeBtn");
 
 let selectedFile = null;
 let currentMode = "beginner";
@@ -28,12 +39,203 @@ let isAnalyzing = false;
 // =========================================
 const REQUEST_TIMEOUT_MS = 300000;
 
+const DEFAULT_SECTION_ANALYSIS = "该维度信息不足，暂未展开详细分析。";
+const DEFAULT_STRENGTHS = ["画面有明确的表达意图。"];
+const DEFAULT_SUGGESTIONS = ["可以尝试换一个更稳定的模型后再次分析。"];
+
+const MODEL_RECOMMENDATIONS = {
+    moonshot: {
+        preferred: "kimi-k2.5",
+        models: {
+            "kimi-k2.5": {
+                badge: "推荐",
+                level: "recommended",
+                message: "更适合稳定输出结构化结果，遇到 JSON 问题时优先试这个。"
+            },
+            "kimi-k2.6": {
+                badge: "注意",
+                level: "warning",
+                message: "表达能力强，但有时更容易返回额外文字；追求稳定时更推荐 kimi-k2.5。"
+            },
+            "moonshot-v1-8k-vision-preview": {
+                badge: "视觉",
+                level: "warning",
+                message: "可用于视觉分析，但返回格式稳定性不如 kimi-k2.5。"
+            },
+            "moonshot-v1-32k-vision-preview": {
+                badge: "视觉",
+                level: "warning",
+                message: "适合更长上下文，但结构化返回稳定性一般。"
+            },
+            "moonshot-v1-128k-vision-preview": {
+                badge: "视觉",
+                level: "warning",
+                message: "适合更长输入，首次使用更建议从 kimi-k2.5 开始。"
+            }
+        }
+    },
+    openai: {
+        preferred: "gpt-4o",
+        models: {
+            "gpt-4o": {
+                badge: "推荐",
+                level: "recommended",
+                message: "结构化输出更稳，适合作为默认选择。"
+            },
+            "gpt-4o-mini": {
+                badge: "轻量",
+                level: "neutral",
+                message: "响应更轻快，但复杂图片下结果细节可能略少。"
+            }
+        }
+    }
+};
+
 // =========================================
 // 自动回填保存的 API Key
 // =========================================
 const savedApiKey = localStorage.getItem("ai_photo_api_key");
 if (savedApiKey) {
-    document.getElementById("apiKey").value = savedApiKey;
+    apiKeyInput.value = savedApiKey;
+}
+
+function setHidden(element, hidden) {
+    if (!element) return;
+    element.classList.toggle("hidden", hidden);
+}
+
+function setAnalyzeStatus(message, tone = "default") {
+    analyzeStatus.textContent = message;
+    analyzeStatus.classList.remove("is-ready", "is-warning", "is-error");
+    if (tone === "ready") analyzeStatus.classList.add("is-ready");
+    if (tone === "warning") analyzeStatus.classList.add("is-warning");
+    if (tone === "error") analyzeStatus.classList.add("is-error");
+}
+
+function getCurrentModelMeta() {
+    const provider = providerSelect.value;
+    const modelName = modelSelect.value;
+    return MODEL_RECOMMENDATIONS[provider]?.models?.[modelName] || null;
+}
+
+function updateAnalyzeButtonState() {
+    const hasApiKey = Boolean(apiKeyInput.value.trim());
+    const hasImage = Boolean(selectedFile);
+    const modelMeta = getCurrentModelMeta();
+    const isRecommendedModel = modelMeta?.level === "recommended";
+
+    analyzeBtn.disabled = isAnalyzing || !hasApiKey || !hasImage;
+
+    if (isAnalyzing) {
+        setAnalyzeStatus("AI 正在分析中，请耐心等待结果返回。");
+        return;
+    }
+
+    if (!hasImage) {
+        setAnalyzeStatus("先上传一张照片，再开始分析。");
+        return;
+    }
+
+    if (!hasApiKey) {
+        setAnalyzeStatus("填写 API Key 后即可开始分析。");
+        return;
+    }
+
+    if (!isRecommendedModel && modelMeta?.level === "warning") {
+        setAnalyzeStatus("当前模型可用，如果更看重稳定性，可以优先试推荐模型。");
+        return;
+    }
+
+    const provider = providerSelect.options[providerSelect.selectedIndex]?.textContent || providerSelect.value;
+    const model = modelSelect.value;
+    setAnalyzeStatus(`已就绪：${provider} / ${model}，可以开始分析。`);
+}
+
+function showErrorCard(state) {
+    errorCard.classList.remove("hidden", "is-warning");
+    if (state.level === "warning") {
+        errorCard.classList.add("is-warning");
+    }
+
+    errorCardType.textContent = state.eyebrow;
+    errorCardTitle.textContent = state.title;
+    errorCardDesc.textContent = state.description;
+    errorCardTips.innerHTML = "";
+
+    (state.tips || []).forEach((tip) => {
+        const tipItem = document.createElement("div");
+        tipItem.className = "feedback-card__tip";
+        tipItem.textContent = tip;
+        errorCardTips.appendChild(tipItem);
+    });
+
+    retryAnalyzeBtn.textContent = state.actionLabel || "重新分析";
+
+    setHidden(outputPlaceholder, true);
+    setHidden(resultSection, true);
+    setHidden(loadingSection, true);
+}
+
+function hideErrorCard() {
+    errorCard.classList.add("hidden");
+    errorCard.classList.remove("is-warning");
+}
+
+function createErrorState(kind, fallbackMessage) {
+    const map = {
+        validation: {
+            eyebrow: "请先补齐信息",
+            title: "还不能开始分析",
+            description: fallbackMessage || "请先上传图片并填写可用的 API Key。",
+            tips: ["确认已经上传图片。", "确认 API Key 已填写完整。"],
+            actionLabel: "回到设置"
+        },
+        timeout: {
+            eyebrow: "请求超时",
+            title: "这次分析花的时间有点久",
+            description: "超过 5 分钟仍未拿到结果，通常是网络波动、图片过大或服务拥堵导致。",
+            tips: ["换一张更小的图片再试。", "优先选择推荐模型。", "确认网络可稳定访问对应 API。"],
+            actionLabel: "重新分析"
+        },
+        format: {
+            eyebrow: "返回格式异常",
+            title: "模型没有按预期返回结构化结果",
+            description: "这通常不是你的操作问题，而是当前模型输出了额外文字或截断了 JSON。",
+            tips: ["优先切换到推荐模型后重试。", "如果是 Moonshot，先试 kimi-k2.5。", "如果是 OpenAI，优先使用 gpt-4o。"],
+            actionLabel: "换模型后重试"
+        },
+        api: {
+            eyebrow: "接口调用失败",
+            title: "AI 服务暂时没有成功响应",
+            description: fallbackMessage || "请检查 API Key、额度和服务状态后重试。",
+            tips: ["401 通常是 Key 无效或已过期。", "429 通常是请求过快或额度用尽。", "5xx 通常是服务商暂时异常。"],
+            actionLabel: "检查后重试"
+        },
+        network: {
+            eyebrow: "网络连接失败",
+            title: "当前设备没能连上 AI 服务",
+            description: "浏览器请求没有成功发出或返回，通常和网络环境有关。",
+            tips: ["确认当前网络可访问对应 API。", "稍后重试，排除临时波动。"],
+            actionLabel: "重新分析"
+        },
+        warning: {
+            eyebrow: "操作提醒",
+            title: "当前操作还不能执行",
+            description: fallbackMessage || "请调整设置后再继续。",
+            tips: [],
+            actionLabel: "知道了",
+            level: "warning"
+        },
+        generic: {
+            eyebrow: "分析失败",
+            title: "这次没有成功完成分析",
+            description: fallbackMessage || "请稍后重试，或换一个模型再试。",
+            tips: ["优先尝试推荐模型。", "确认网络与 API Key 都正常。"],
+            actionLabel: "重新分析"
+        }
+    };
+
+    return map[kind] || map.generic;
 }
 
 // =========================================
@@ -464,10 +666,17 @@ function populateModels(provider) {
     models.forEach((m, i) => {
         const opt = document.createElement("option");
         opt.value = m.value;
-        opt.textContent = m.label;
+        const recommendedModel = MODEL_RECOMMENDATIONS[provider]?.preferred;
+        opt.textContent = m.value === recommendedModel ? `${m.label}（推荐）` : m.label;
         if (i === 0) opt.selected = true;
         modelSelect.appendChild(opt);
     });
+
+    const preferred = MODEL_RECOMMENDATIONS[provider]?.preferred;
+    if (preferred) {
+        modelSelect.value = preferred;
+    }
+    updateAnalyzeButtonState();
 }
 
 // Initialize
@@ -475,14 +684,50 @@ populateModels("moonshot");
 
 providerSelect.addEventListener("change", () => {
     populateModels(providerSelect.value);
+    hideErrorCard();
 });
 
-document.getElementById("apiKey").addEventListener("blur", (e) => {
-    const val = e.target.value.trim();
+modelSelect.addEventListener("change", () => {
+    updateAnalyzeButtonState();
+});
+
+apiKeyInput.addEventListener("input", () => {
+    updateAnalyzeButtonState();
+});
+
+apiKeyInput.addEventListener("blur", () => {
+    const val = apiKeyInput.value.trim();
     if (val) {
         localStorage.setItem("ai_photo_api_key", val);
+    } else {
+        localStorage.removeItem("ai_photo_api_key");
     }
+    updateAnalyzeButtonState();
 });
+
+toggleApiKeyBtn.addEventListener("click", () => {
+    const shouldShow = apiKeyInput.type === "password";
+    apiKeyInput.type = shouldShow ? "text" : "password";
+    toggleApiKeyBtn.textContent = shouldShow ? "隐藏" : "显示";
+});
+
+clearApiKeyBtn.addEventListener("click", () => {
+    apiKeyInput.value = "";
+    localStorage.removeItem("ai_photo_api_key");
+    updateAnalyzeButtonState();
+    apiKeyInput.focus();
+});
+
+retryAnalyzeBtn.addEventListener("click", () => {
+    hideErrorCard();
+    if (!analyzeBtn.disabled) {
+        analyzeBtn.click();
+        return;
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+updateAnalyzeButtonState();
 
 // =========================================
 // Mode Switcher
@@ -504,6 +749,8 @@ document.querySelectorAll(".mode-card").forEach(card => {
         loadingSub.textContent = currentMode === "professional"
             ? "AI 正在从构图、光线、色彩等维度进行专业评估"
             : "AI 正在为你寻找照片中的闪光点";
+
+        updateAnalyzeButtonState();
     });
 });
 
@@ -513,16 +760,18 @@ document.querySelectorAll(".mode-card").forEach(card => {
 
 function handleFile(file) {
     if (isAnalyzing) {
-        alert("AI 正在分析中，请等待完成后再上传新图片");
+        showErrorCard(createErrorState("warning", "AI 正在分析中，请等待当前任务完成后再上传新图片。"));
         return;
     }
     if (!file || !file.type.startsWith("image/")) {
-        alert("请选择有效的图片文件");
+        showErrorCard(createErrorState("warning", "请选择有效的图片文件后重试。"));
         return;
     }
 
     selectedFile = file;
     extractedExif = null;
+    hideErrorCard();
+    updateAnalyzeButtonState();
 
     uploadPlaceholder.classList.add("hidden");
     uploadLoading.classList.remove("hidden");
@@ -542,6 +791,7 @@ function handleFile(file) {
                 previewImage.src = compressedDataUrl;
                 uploadLoading.classList.add("hidden");
                 previewContainer.classList.remove("hidden");
+                updateAnalyzeButtonState();
             })
             .catch(err => {
                 console.error("压缩失败，使用原图", err);
@@ -558,11 +808,12 @@ function useOriginalFile(file) {
         previewImage.src = event.target.result;
         uploadLoading.classList.add("hidden");
         previewContainer.classList.remove("hidden");
+        updateAnalyzeButtonState();
     };
     reader.onerror = () => {
         uploadLoading.classList.add("hidden");
         uploadPlaceholder.classList.remove("hidden");
-        alert("图片读取失败，请重试");
+        showErrorCard(createErrorState("warning", "图片读取失败，请换一张图片后重试。"));
     };
     reader.readAsDataURL(file);
 }
@@ -631,23 +882,23 @@ function renderExifCard(exif) {
     card.className = "card exif-display-card";
 
     const items = [];
-    if (exif.camera) items.push(`<span class="exif-tag">📷 ${exif.camera}</span>`);
-    if (exif.lens) items.push(`<span class="exif-tag">🔭 ${exif.lens}</span>`);
-    if (exif.aperture) items.push(`<span class="exif-tag">🔍 ${exif.aperture}</span>`);
-    if (exif.shutterSpeed) items.push(`<span class="exif-tag">⏱ ${exif.shutterSpeed}</span>`);
-    if (exif.iso) items.push(`<span class="exif-tag">⚡ ${exif.iso}</span>`);
-    if (exif.focalLength) items.push(`<span class="exif-tag">📐 ${exif.focalLength}</span>`);
-    if (exif.focalLength35) items.push(`<span class="exif-tag">35mm 等效: ${exif.focalLength35}</span>`);
-    if (exif.resolution) items.push(`<span class="exif-tag">🖼 ${exif.resolution}</span>`);
-    if (exif.dateTime) items.push(`<span class="exif-tag">📅 ${exif.dateTime}</span>`);
-    if (exif.exposureProgram) items.push(`<span class="exif-tag">🎚 ${exif.exposureProgram}</span>`);
-    if (exif.metering) items.push(`<span class="exif-tag">🧭 ${exif.metering}</span>`);
-    if (exif.flash) items.push(`<span class="exif-tag">⚡ ${exif.flash}</span>`);
-    if (exif.whiteBalance) items.push(`<span class="exif-tag">🎨 ${exif.whiteBalance}</span>`);
-    if (exif.orientation) items.push(`<span class="exif-tag">🔄 ${exif.orientation}</span>`);
-    if (exif.owner) items.push(`<span class="exif-tag">👤 ${exif.owner}</span>`);
-    if (exif.software) items.push(`<span class="exif-tag">💻 ${exif.software}</span>`);
-    if (exif.gps) items.push(`<span class="exif-tag">📍 ${exif.gps}</span>`);
+    if (exif.camera) items.push(`<span class="exif-tag">📷 ${escapeHtml(exif.camera)}</span>`);
+    if (exif.lens) items.push(`<span class="exif-tag">🔭 ${escapeHtml(exif.lens)}</span>`);
+    if (exif.aperture) items.push(`<span class="exif-tag">🔍 ${escapeHtml(exif.aperture)}</span>`);
+    if (exif.shutterSpeed) items.push(`<span class="exif-tag">⏱ ${escapeHtml(exif.shutterSpeed)}</span>`);
+    if (exif.iso) items.push(`<span class="exif-tag">⚡ ${escapeHtml(exif.iso)}</span>`);
+    if (exif.focalLength) items.push(`<span class="exif-tag">📐 ${escapeHtml(exif.focalLength)}</span>`);
+    if (exif.focalLength35) items.push(`<span class="exif-tag">35mm 等效: ${escapeHtml(exif.focalLength35)}</span>`);
+    if (exif.resolution) items.push(`<span class="exif-tag">🖼 ${escapeHtml(exif.resolution)}</span>`);
+    if (exif.dateTime) items.push(`<span class="exif-tag">📅 ${escapeHtml(exif.dateTime)}</span>`);
+    if (exif.exposureProgram) items.push(`<span class="exif-tag">🎚 ${escapeHtml(exif.exposureProgram)}</span>`);
+    if (exif.metering) items.push(`<span class="exif-tag">🧭 ${escapeHtml(exif.metering)}</span>`);
+    if (exif.flash) items.push(`<span class="exif-tag">⚡ ${escapeHtml(exif.flash)}</span>`);
+    if (exif.whiteBalance) items.push(`<span class="exif-tag">🎨 ${escapeHtml(exif.whiteBalance)}</span>`);
+    if (exif.orientation) items.push(`<span class="exif-tag">🔄 ${escapeHtml(exif.orientation)}</span>`);
+    if (exif.owner) items.push(`<span class="exif-tag">👤 ${escapeHtml(exif.owner)}</span>`);
+    if (exif.software) items.push(`<span class="exif-tag">💻 ${escapeHtml(exif.software)}</span>`);
+    if (exif.gps) items.push(`<span class="exif-tag">📍 ${escapeHtml(exif.gps)}</span>`);
 
     if (items.length === 0) return;
 
@@ -663,7 +914,7 @@ function renderExifCard(exif) {
 replaceBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     if (isAnalyzing) {
-        alert("AI 正在分析中，请等待完成后再更换图片");
+        showErrorCard(createErrorState("warning", "AI 正在分析中，请等待完成后再更换图片。"));
         return;
     }
     imageInput.click();
@@ -688,7 +939,7 @@ dropZone.addEventListener("drop", (e) => {
     e.preventDefault();
     dropZone.classList.remove("drag-over");
     if (isAnalyzing) {
-        alert("AI 正在分析中，请等待完成后再上传新图片");
+        showErrorCard(createErrorState("warning", "AI 正在分析中，请等待完成后再上传新图片。"));
         return;
     }
     const file = e.dataTransfer.files[0];
@@ -697,7 +948,7 @@ dropZone.addEventListener("drop", (e) => {
 
 uploadPlaceholder.addEventListener("click", () => {
     if (isAnalyzing) {
-        alert("AI 正在分析中，请等待完成后再上传新图片");
+        showErrorCard(createErrorState("warning", "AI 正在分析中，请等待完成后再上传新图片。"));
         return;
     }
     imageInput.click();
@@ -755,22 +1006,202 @@ function stopLoadingAnimation() {
     }, 500);
 }
 
+function normalizeStringArray(value, fallback = []) {
+    if (!Array.isArray(value)) return [...fallback];
+    const items = value
+        .map((item) => typeof item === "string" ? item.trim() : "")
+        .filter(Boolean);
+    return items.length ? items : [...fallback];
+}
+
+function normalizeScore(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return 0;
+    return Math.min(10, Math.max(0, Math.round(num * 10) / 10));
+}
+
+function normalizeSection(section, fallbackAnalysis = DEFAULT_SECTION_ANALYSIS) {
+    return {
+        analysis: typeof section?.analysis === "string" && section.analysis.trim()
+            ? section.analysis.trim()
+            : fallbackAnalysis,
+        strengths: normalizeStringArray(section?.strengths, []),
+        improvements: normalizeStringArray(section?.improvements, []),
+        suggestions: normalizeStringArray(section?.suggestions, [])
+    };
+}
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+function extractFirstJsonObject(text) {
+    if (typeof text !== "string") return null;
+
+    let start = -1;
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+
+        if (inString) {
+            if (escaped) {
+                escaped = false;
+            } else if (char === "\\") {
+                escaped = true;
+            } else if (char === "\"") {
+                inString = false;
+            }
+            continue;
+        }
+
+        if (char === "\"") {
+            inString = true;
+            continue;
+        }
+
+        if (char === "{") {
+            if (depth === 0) start = i;
+            depth += 1;
+            continue;
+        }
+
+        if (char === "}") {
+            if (depth === 0) continue;
+            depth -= 1;
+            if (depth === 0 && start !== -1) {
+                return text.slice(start, i + 1);
+            }
+        }
+    }
+
+    return null;
+}
+
+function buildFallbackResultFromRawText(rawContent) {
+    const normalizedText = String(rawContent || "").trim();
+    const shortSummary = normalizedText
+        ? normalizedText.replace(/\s+/g, " ").slice(0, 80)
+        : "AI 返回了文字结果，已为你降级展示。";
+
+    return {
+        photo_type: "待确认",
+        photography_style: ["降级展示"],
+        overall_summary: shortSummary,
+        scores: {
+            composition: 0,
+            lighting: 0,
+            color: 0,
+            storytelling: 0,
+            overall: 0
+        },
+        composition: {
+            analysis: normalizedText || DEFAULT_SECTION_ANALYSIS,
+            strengths: DEFAULT_STRENGTHS,
+            improvements: [],
+            suggestions: DEFAULT_SUGGESTIONS
+        },
+        lighting: normalizeSection(null),
+        color: normalizeSection(null),
+        storytelling: normalizeSection(null),
+        advanced_analysis: {
+            visual_focus: "",
+            depth_and_layers: "",
+            visual_flow: "",
+            emotional_tone: "",
+            style_reference: []
+        },
+        meta: {
+            parseStrategy: "fallback-text",
+            rawText: normalizedText
+        }
+    };
+}
+
+function standardizeResult(result, meta = {}) {
+    const raw = result && typeof result === "object" ? result : {};
+    const standardized = {
+        photo_type: typeof raw.photo_type === "string" && raw.photo_type.trim() ? raw.photo_type.trim() : "未识别类型",
+        photography_style: normalizeStringArray(raw.photography_style, []),
+        overall_summary: typeof raw.overall_summary === "string" && raw.overall_summary.trim()
+            ? raw.overall_summary.trim()
+            : "AI 已完成分析，但总结信息较少。",
+        scores: {
+            composition: normalizeScore(raw.scores?.composition),
+            lighting: normalizeScore(raw.scores?.lighting),
+            color: normalizeScore(raw.scores?.color),
+            storytelling: normalizeScore(raw.scores?.storytelling),
+            overall: normalizeScore(raw.scores?.overall)
+        },
+        composition: normalizeSection(raw.composition),
+        lighting: normalizeSection(raw.lighting),
+        color: normalizeSection(raw.color),
+        storytelling: normalizeSection(raw.storytelling),
+        advanced_analysis: {
+            visual_focus: typeof raw.advanced_analysis?.visual_focus === "string" ? raw.advanced_analysis.visual_focus.trim() : "",
+            depth_and_layers: typeof raw.advanced_analysis?.depth_and_layers === "string" ? raw.advanced_analysis.depth_and_layers.trim() : "",
+            visual_flow: typeof raw.advanced_analysis?.visual_flow === "string" ? raw.advanced_analysis.visual_flow.trim() : "",
+            emotional_tone: typeof raw.advanced_analysis?.emotional_tone === "string" ? raw.advanced_analysis.emotional_tone.trim() : "",
+            style_reference: normalizeStringArray(raw.advanced_analysis?.style_reference, [])
+        },
+        meta: {
+            parseStrategy: meta.parseStrategy || "direct-json",
+            rawText: meta.rawText || ""
+        }
+    };
+
+    return standardized;
+}
+
+function parseAiResult(rawContent) {
+    const directText = typeof rawContent === "string" ? rawContent.trim() : "";
+    const candidates = [
+        { strategy: "direct-json", text: directText }
+    ];
+    const extracted = extractFirstJsonObject(directText);
+    if (extracted && extracted !== directText) {
+        candidates.push({ strategy: "extracted-json", text: extracted });
+    }
+
+    for (const candidate of candidates) {
+        if (!candidate.text) continue;
+        try {
+            const parsed = JSON.parse(candidate.text);
+            return standardizeResult(parsed, { parseStrategy: candidate.strategy, rawText: directText });
+        } catch (_) {
+            // continue to next strategy
+        }
+    }
+
+    return standardizeResult(buildFallbackResultFromRawText(directText), {
+        parseStrategy: "fallback-text",
+        rawText: directText
+    });
+}
+
 // =========================================
 // Analyze (direct API call with user key)
 // =========================================
 
 analyzeBtn.addEventListener("click", async () => {
-    const apiKey = document.getElementById("apiKey").value.trim();
-    const modelName = document.getElementById("modelName").value.trim();
+    const apiKey = apiKeyInput.value.trim();
+    const modelName = modelSelect.value.trim();
     const provider = providerSelect.value;
 
     if (!apiKey) {
-        alert("请输入 API Key");
-        document.getElementById("apiKey").focus();
+        showErrorCard(createErrorState("validation", "请输入 API Key 后再开始分析。"));
+        apiKeyInput.focus();
         return;
     }
     if (!selectedFile) {
-        alert("请先上传图片");
+        showErrorCard(createErrorState("validation", "请先上传图片，再开始分析。"));
         return;
     }
 
@@ -780,16 +1211,15 @@ analyzeBtn.addEventListener("click", async () => {
     isAnalyzing = true;
 
     resetAnalysisState();
+    hideErrorCard();
+    updateAnalyzeButtonState();
 
-    analyzeBtn.disabled = true;
-    analyzeBtn.style.opacity = "0.6";
-    analyzeBtn.style.cursor = "not-allowed";
     const originalBtnText = analyzeBtnText.textContent;
     analyzeBtnText.textContent = "分析中...";
 
     loadingSection.classList.remove("hidden");
     resultSection.classList.add("hidden");
-    document.getElementById("outputPlaceholder").classList.add("hidden");
+    outputPlaceholder.classList.add("hidden");
 
     const spinner = loadingSection.querySelector('.spinner');
     if (spinner) {
@@ -883,12 +1313,13 @@ ISO：${extractedExif.iso || "未知"}
             throw new Error("AI 返回内容为空");
         }
 
-        let result;
-        try {
-            result = JSON.parse(rawContent);
-        } catch (parseErr) {
-            console.error("JSON 解析失败，原始内容：", rawContent);
-            throw new Error("AI 返回格式异常，无法解析为 JSON");
+        const result = parseAiResult(rawContent);
+        if (result.meta?.parseStrategy === "extracted-json") {
+            setAnalyzeStatus("分析已完成：模型返回了额外文字，系统已自动提取有效结果。");
+        } else if (result.meta?.parseStrategy === "fallback-text") {
+            setAnalyzeStatus("分析已完成：模型未返回标准 JSON，当前为降级展示结果。");
+        } else {
+            updateAnalyzeButtonState();
         }
 
         if (currentMode === "professional") {
@@ -900,33 +1331,31 @@ ISO：${extractedExif.iso || "未知"}
     } catch (error) {
         clearTimeout(timeoutId);
 
-        let userMsg = "分析失败";
-
         if (error.name === 'AbortError') {
-            userMsg = "⏱ 分析超时（超过 5 分钟）\n\n可能原因：\n1. 网络连接不稳定\n2. AI 服务繁忙\n3. 图片过大\n\n建议：\n• 换一张较小的图片（建议 < 5MB）\n• 检查网络后重试\n• 稍后再试";
+            showErrorCard(createErrorState("timeout"));
+            setAnalyzeStatus("分析超时了，建议换更稳定的模型或更小的图片重试。", "error");
         } else if (error.message.includes('JSON') || error.message.includes('格式异常')) {
-            userMsg = "📄 AI 返回格式异常\n\n可能原因：\n1. 当前模型不支持 JSON 强制输出\n2. AI 输出被截断\n3. 模型返回了额外说明文字\n\n建议：\n• 换一个模型（如 kimi-k2.5 / gpt-4o）\n• 缩短提示词后重试";
+            showErrorCard(createErrorState("format"));
+            setAnalyzeStatus("模型没有稳定返回结构化结果，建议先切换推荐模型。", "error");
         } else if (error.message.includes('API 错误') || error.message.includes('HTTP')) {
-            userMsg = `🔌 ${error.message}\n\n常见原因：\n• 401：API Key 无效或已过期\n• 429：请求太频繁或额度用尽\n• 500：AI 服务商内部错误\n\n建议检查 API Key 或稍后重试`;
+            showErrorCard(createErrorState("api", error.message));
+            setAnalyzeStatus("接口请求失败了，请检查 Key、额度或服务状态。", "error");
         } else if (error.message.includes('fetch') || error.message.includes('网络') || error.message.includes('Failed')) {
-            userMsg = "🌐 网络连接失败\n\n无法连接到 AI 服务，请检查网络后重试。";
+            showErrorCard(createErrorState("network"));
+            setAnalyzeStatus("网络连接失败，请确认当前网络可以访问对应 API。", "error");
         } else {
-            userMsg = `❌ 分析失败：${error.message}`;
+            showErrorCard(createErrorState("generic", `分析失败：${error.message}`));
+            setAnalyzeStatus("这次分析没有成功完成，可以换个模型再试。", "error");
         }
-
-        alert(userMsg);
         console.error("完整错误：", error);
-        document.getElementById("outputPlaceholder").classList.remove("hidden");
 
     } finally {
         clearTimeout(timeoutId);
         stopLoadingAnimation();
         loadingSection.classList.add("hidden");
-        analyzeBtn.disabled = false;
-        analyzeBtn.style.opacity = "";
-        analyzeBtn.style.cursor = "";
         analyzeBtnText.textContent = originalBtnText;
         isAnalyzing = false;
+        updateAnalyzeButtonState();
     }
 });
 
@@ -962,7 +1391,7 @@ function resetAnalysisState() {
     document.getElementById("encouragementCard").classList.add("hidden");
     document.getElementById("tipsCard").classList.add("hidden");
     document.getElementById("praiseCard").classList.add("hidden");
-    document.getElementById("outputPlaceholder").classList.remove("hidden");
+    outputPlaceholder.classList.remove("hidden");
 }
 
 // =========================================
@@ -1005,6 +1434,7 @@ function animateRing(score) {
 
 function renderResultProfessional(result) {
     resultSection.classList.remove("hidden");
+    hideErrorCard();
 
     // Summary card
     const summaryCard = document.getElementById("summaryCard");
@@ -1092,13 +1522,23 @@ function renderResultProfessional(result) {
 
         card.innerHTML = `
             <h2>${title}</h2>
-            <p>${sectionData.analysis || ""}</p>
+            <p>${escapeHtml(sectionData.analysis || "")}</p>
             ${renderListSection("优点", sectionData.strengths)}
             ${renderListSection("可优化点", sectionData.improvements)}
             ${renderListSection("修改建议", sectionData.suggestions)}
         `;
         analysisContainer.appendChild(card);
     });
+
+    if (result.meta?.parseStrategy === "fallback-text" && result.meta?.rawText) {
+        const rawCard = document.createElement("div");
+        rawCard.className = "analysis-card";
+        rawCard.innerHTML = `
+            <h2>AI 原始评价</h2>
+            <p>${escapeHtml(result.meta.rawText)}</p>
+        `;
+        analysisContainer.appendChild(rawCard);
+    }
 
     setTimeout(() => {
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1111,6 +1551,7 @@ function renderResultProfessional(result) {
 
 function renderResultBeginner(result) {
     resultSection.classList.remove("hidden");
+    hideErrorCard();
 
     // Hide all professional sections
     document.getElementById("summaryCard").classList.add("hidden");
@@ -1123,7 +1564,9 @@ function renderResultBeginner(result) {
     document.getElementById("tipsCard").classList.remove("hidden");
 
     // Encouragement
-    document.getElementById("encouragementText").textContent = result.overall_summary || "这是一张很有感觉的照片！";
+    document.getElementById("encouragementText").textContent = result.meta?.parseStrategy === "fallback-text" && result.meta?.rawText
+        ? result.meta.rawText
+        : result.overall_summary || "这是一张很有感觉的照片！";
 
     // Praise: collect some strengths
     const praiseList = document.getElementById("praiseList");
@@ -1145,7 +1588,7 @@ function renderResultBeginner(result) {
         div.className = "tip-item";
         div.innerHTML = `
             <span class="tip-icon">${i + 1}</span>
-            <span class="tip-text">${p}</span>
+            <span class="tip-text">${escapeHtml(p)}</span>
         `;
         praiseList.appendChild(div);
     });
@@ -1174,7 +1617,7 @@ function renderResultBeginner(result) {
         div.className = "tip-item";
         div.innerHTML = `
             <span class="tip-icon">${i + 1}</span>
-            <span class="tip-text">${tip}</span>
+            <span class="tip-text">${escapeHtml(tip)}</span>
         `;
         tipsList.appendChild(div);
     });
@@ -1194,7 +1637,7 @@ function renderListSection(title, items = []) {
         <div class="analysis-section">
             <h4>${title}</h4>
             <ul>
-                ${items.map(item => `<li>${item}</li>`).join("")}
+                ${items.map(item => `<li>${escapeHtml(item)}</li>`).join("")}
             </ul>
         </div>
     `;

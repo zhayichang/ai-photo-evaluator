@@ -420,6 +420,22 @@ button,
     color: var(--text-secondary);
 }
 
+#apiKeyHint {
+    margin-top: 8px;
+}
+
+.input-with-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.input-actions {
+    display: inline-flex;
+    gap: 8px;
+}
+
 input {
     width: 100%;
     padding: 12px 14px;
@@ -693,6 +709,65 @@ select option {
     transform: translateY(0);
 }
 
+.btn-primary:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    background: linear-gradient(135deg, #6ea9e6, #8fc0ec);
+}
+
+.btn-primary:disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.btn-secondary:hover {
+    border-color: var(--border-strong);
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.btn-inline {
+    min-width: 52px;
+    padding: 11px 12px;
+}
+
+.analyze-status {
+    margin: -8px 0 20px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    min-height: 24px;
+}
+
+.analyze-status.is-ready {
+    color: var(--text-secondary);
+}
+
+.analyze-status.is-warning {
+    color: var(--text-secondary);
+}
+
+.analyze-status.is-error {
+    color: var(--danger);
+}
+
 /* EXIF Display Card — 统一为白色卡片风格 */
 .exif-display-card {
     padding: 24px;
@@ -781,6 +856,85 @@ select option {
     color: var(--text-secondary);
     min-height: 24px;
     transition: opacity 0.3s ease;
+}
+
+.feedback-card {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 18px;
+    align-items: flex-start;
+    background: linear-gradient(180deg, rgba(255, 249, 245, 0.98) 0%, rgba(255, 255, 255, 0.96) 100%);
+    border: 1px solid rgba(255, 59, 48, 0.14);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.08);
+}
+
+.feedback-card__icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    display: grid;
+    place-items: center;
+    background: rgba(255, 59, 48, 0.1);
+    color: var(--danger);
+    font-size: 24px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.feedback-card__eyebrow {
+    display: inline-block;
+    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--danger);
+}
+
+.feedback-card__title {
+    margin-bottom: 10px;
+}
+
+.feedback-card__desc {
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+.feedback-card__tips {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.feedback-card__tip {
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 59, 48, 0.08);
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.feedback-card__btn {
+    margin-top: 18px;
+    padding: 12px 16px;
+}
+
+.feedback-card.is-warning {
+    background: linear-gradient(180deg, rgba(255, 252, 244, 0.98) 0%, rgba(255, 255, 255, 0.96) 100%);
+    border-color: rgba(255, 149, 0, 0.16);
+}
+
+.feedback-card.is-warning .feedback-card__icon {
+    background: rgba(255, 149, 0, 0.12);
+    color: var(--warning);
+}
+
+.feedback-card.is-warning .feedback-card__eyebrow {
+    color: var(--warning);
 }
 
 /* Summary Card */
@@ -1361,6 +1515,28 @@ select option {
     .app-layout {
         grid-template-columns: 1fr;
     }
+
+    .input-with-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .input-actions {
+        width: 100%;
+    }
+
+    .btn-inline {
+        flex: 1;
+    }
+
+    .feedback-card {
+        grid-template-columns: 1fr;
+    }
+
+    .feedback-card__icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+    }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1509,6 +1685,16 @@ select option {
         box-shadow: 0 12px 28px rgba(10, 132, 255, 0.25);
     }
 
+    .btn-secondary {
+        background: rgba(12, 18, 34, 0.95);
+        border-color: rgba(255, 255, 255, 0.12);
+        color: var(--text);
+    }
+
+    .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.06);
+    }
+
     .replace-btn {
         background: rgba(255, 255, 255, 0.08);
         color: var(--text);
@@ -1536,5 +1722,20 @@ select option {
     .exif-tag {
         background: rgba(16, 24, 40, 0.95);
         border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .feedback-card {
+        background: linear-gradient(180deg, rgba(44, 20, 24, 0.96) 0%, rgba(24, 18, 28, 0.98) 100%);
+        border-color: rgba(255, 99, 91, 0.18);
+    }
+
+    .feedback-card__tip {
+        background: rgba(20, 24, 38, 0.9);
+        border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .feedback-card.is-warning {
+        background: linear-gradient(180deg, rgba(45, 32, 15, 0.95) 0%, rgba(24, 18, 28, 0.98) 100%);
+        border-color: rgba(255, 184, 77, 0.18);
     }
 }
