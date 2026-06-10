@@ -35,6 +35,10 @@ let isAnalyzing = false;
 // =========================================
 const REQUEST_TIMEOUT_MS = 300000;
 const API_ENDPOINT = "https://api.moonshot.cn/v1/chat/completions";
+const IMAGE_MAX_DIMENSION = 1920;
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const IMAGE_INITIAL_QUALITY = 0.88;
+const IMAGE_MIN_QUALITY = 0.58;
 const MODEL_FALLBACK_CHAIN = [
     "kimi-k2.6",
     "kimi-k2.5",
@@ -43,7 +47,6 @@ const MODEL_FALLBACK_CHAIN = [
     "moonshot-v1-128k-vision-preview"
 ];
 
-// 警告：纯前端代码中的 Key 会暴露给所有访问者。请填入受限、可撤销的 Key。
 const API_KEYS = {
     moonshot: "sk-SBw0Y8tstFdEwW00mUL3u1uKe4ej6q214g7zHCqUj4ooFLFA"
 };
@@ -654,22 +657,21 @@ function handleFile(file) {
 
     });
 
-    if (file.size > 25 * 1024 * 1024) {
-        compressImage(file, 2400, 0.96)
-            .then(compressedDataUrl => {
-                selectedFile = dataUrlToFile(compressedDataUrl, file.name);
-                previewImage.src = compressedDataUrl;
-                uploadLoading.classList.add("hidden");
-                previewContainer.classList.remove("hidden");
-                updateAnalyzeButtonState();
-            })
-            .catch(err => {
-                console.error("压缩失败，使用原图", err);
-                useOriginalFile(file);
-            });
-    } else {
-        useOriginalFile(file);
-    }
+    compressImage(file, {
+        maxDimension: IMAGE_MAX_DIMENSION,
+        maxBytes: IMAGE_MAX_BYTES,
+        initialQuality: IMAGE_INITIAL_QUALITY,
+        minQuality: IMAGE_MIN_QUALITY
+    })
+        .then(compressedFile => {
+            selectedFile = compressedFile;
+            useOriginalFile(compressedFile);
+        })
+        .catch(err => {
+            console.error("压缩失败，使用原图", err);
+            selectedFile = file;
+            useOriginalFile(file);
+        });
 }
 
 function useOriginalFile(file) {
@@ -688,33 +690,83 @@ function useOriginalFile(file) {
     reader.readAsDataURL(file);
 }
 
-function compressImage(file, maxWidth, quality) {
+function canvasToBlob(canvas, quality) {
+    return new Promise((resolve, reject) => {
+        canvas.toBlob(
+            blob => blob ? resolve(blob) : reject(new Error("图片编码失败")),
+            "image/jpeg",
+            quality
+        );
+    });
+}
+
+function createJpegFilename(filename) {
+    const baseName = filename.replace(/\.[^.]+$/, "") || "photo";
+    return `${baseName}.jpg`;
+}
+
+function compressImage(file, {
+    maxDimension,
+    maxBytes,
+    initialQuality,
+    minQuality
+}) {
     return new Promise((resolve, reject) => {
         const img = new Image();
         const url = URL.createObjectURL(file);
 
-        img.onload = () => {
+        img.onload = async () => {
             URL.revokeObjectURL(url);
             let { width, height } = img;
 
-            if (width > maxWidth || height > maxWidth) {
+            if (width > maxDimension || height > maxDimension) {
                 if (width > height) {
-                    height = Math.round(height * maxWidth / width);
-                    width = maxWidth;
+                    height = Math.round(height * maxDimension / width);
+                    width = maxDimension;
                 } else {
-                    width = Math.round(width * maxWidth / height);
-                    height = maxWidth;
+                    width = Math.round(width * maxDimension / height);
+                    height = maxDimension;
                 }
             }
 
             const canvas = document.createElement("canvas");
-            canvas.width = width;
-            canvas.height = height;
             const ctx = canvas.getContext("2d");
-            ctx.drawImage(img, 0, 0, width, height);
+            if (!ctx) {
+                reject(new Error("当前浏览器不支持图片压缩"));
+                return;
+            }
 
-            const dataUrl = canvas.toDataURL("image/jpeg", quality);
-            resolve(dataUrl);
+            try {
+                let quality = initialQuality;
+                let blob;
+
+                while (true) {
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillRect(0, 0, width, height);
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    blob = await canvasToBlob(canvas, quality);
+                    if (blob.size <= maxBytes) break;
+
+                    if (quality > minQuality) {
+                        quality = Math.max(minQuality, quality - 0.08);
+                    } else if (width > 960 || height > 960) {
+                        width = Math.max(1, Math.round(width * 0.85));
+                        height = Math.max(1, Math.round(height * 0.85));
+                    } else {
+                        break;
+                    }
+                }
+
+                resolve(new File([blob], createJpegFilename(file.name), {
+                    type: "image/jpeg",
+                    lastModified: file.lastModified
+                }));
+            } catch (error) {
+                reject(error);
+            }
         };
 
         img.onerror = () => {
@@ -724,18 +776,6 @@ function compressImage(file, maxWidth, quality) {
 
         img.src = url;
     });
-}
-
-function dataUrlToFile(dataUrl, filename) {
-    const arr = dataUrl.split(',');
-    const mime = arr[0].match(/:(.*?);/)[1];
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    while (n--) {
-        u8arr[n] = bstr.charCodeAt(n);
-    }
-    return new File([u8arr], filename, { type: mime });
 }
 
 // =========================================
