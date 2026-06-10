@@ -64,40 +64,9 @@
                     </div>
                 </section>
 
-                <!-- 步骤 2：选择模型并输入 API Key -->
-                <section class="card settings-card">
-                    <div class="step-label"><span class="step-num">2</span>选择模型并输入 API Key</div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="provider">API 提供商</label>
-                            <select id="provider">
-                                <option value="moonshot" selected>Moonshot AI</option>
-                                <option value="openai">OpenAI</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="modelName">模型</label>
-                            <select id="modelName"></select>
-                        </div>
-                    </div>
-                    <div class="form-row api-key-row">
-                        <div class="form-group">
-                            <label for="apiKey">API Key</label>
-                            <div class="input-with-actions">
-                                <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
-                                <div class="input-actions">
-                                    <button class="btn-secondary btn-inline" id="toggleApiKeyBtn" type="button">显示</button>
-                                    <button class="btn-secondary btn-inline" id="clearApiKeyBtn" type="button">清除</button>
-                                </div>
-                            </div>
-                            <small class="form-hint" id="apiKeyHint">请输入您的 API KEY，API KEY 仅存储在当前浏览器本地。</small>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 步骤 3：选择分析模式 -->
+                <!-- 步骤 2：选择分析模式 -->
                 <section class="card mode-selector-card">
-                    <div class="step-label"><span class="step-num">3</span>选择分析模式</div>
+                    <div class="step-label"><span class="step-num">2</span>选择分析模式</div>
                     <div class="mode-selector" id="modeSelector">
                         <div class="mode-card active" data-mode="beginner">
                             <div class="mode-check">
@@ -128,7 +97,7 @@
                     </div>
                 </section>
 
-                <!-- 步骤 4：点击开始 -->
+                <!-- 步骤 3：点击开始 -->
                 <button class="btn-primary analyze-btn" id="analyzeBtn">
                     <span id="analyzeBtnText">开始友好点评</span>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -137,7 +106,7 @@
                         <polyline points="12 5 19 12 12 19" />
                     </svg>
                 </button>
-                <p class="analyze-status" id="analyzeStatus">上传照片并填写 API Key 后，即可开始分析。</p>
+                <p class="analyze-status" id="analyzeStatus">上传照片后，即可开始分析。</p>
 
             </div>
 
@@ -161,19 +130,12 @@
                         <div class="step-item">
                             <span class="step-mark">2</span>
                             <div>
-                                <strong>选择模型并输入 API Key</strong>
-                                <p>先选择 AI 提供商与模型，再填写你自己的 API Key。</p>
-                            </div>
-                        </div>
-                        <div class="step-item">
-                            <span class="step-mark">3</span>
-                            <div>
                                 <strong>选择分析模式</strong>
                                 <p>入门模式更友好，专业模式更深入。</p>
                             </div>
                         </div>
                         <div class="step-item">
-                            <span class="step-mark">4</span>
+                            <span class="step-mark">3</span>
                             <div>
                                 <strong>点击开始</strong>
                                 <p>AI 会在右侧卡片中呈现专业分析或入门建议。</p>
@@ -271,13 +233,14 @@
                         <div class="tips-list" id="tipsList"></div>
                     </div>
 
+                    <p class="model-used-note" id="modelUsedNote"></p>
                 </section>
             </div>
         </div>
     </div>
 
     <p class="footer-quote">AI 能识别图像中的模式，却无法拥有人类的凝视；真正的审美，永远属于按下快门的那个人。</p>
-    <footer class="app-footer">Designed by 猹猹🦡，Powered by Moonshot🌕 & OpenAI🤖 --v2026.05.24</footer>
+    <footer class="app-footer">Designed by 猹猹🦡，Powered by Moonshot🌕 --v2026.05.24</footer>
 
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="script.js"></script>

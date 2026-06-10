@@ -8,11 +8,6 @@ const analyzeBtn = document.getElementById("analyzeBtn");
 const analyzeBtnText = document.getElementById("analyzeBtnText");
 const analyzeStatus = document.getElementById("analyzeStatus");
 const dropZone = document.getElementById("dropZone");
-const providerSelect = document.getElementById("provider");
-const modelSelect = document.getElementById("modelName");
-const apiKeyInput = document.getElementById("apiKey");
-const toggleApiKeyBtn = document.getElementById("toggleApiKeyBtn");
-const clearApiKeyBtn = document.getElementById("clearApiKeyBtn");
 
 const loadingSection = document.getElementById("loadingSection");
 const loadingText = document.getElementById("loadingText");
@@ -26,6 +21,7 @@ const errorCardTitle = document.getElementById("errorCardTitle");
 const errorCardDesc = document.getElementById("errorCardDesc");
 const errorCardTips = document.getElementById("errorCardTips");
 const retryAnalyzeBtn = document.getElementById("retryAnalyzeBtn");
+const modelUsedNote = document.getElementById("modelUsedNote");
 
 let selectedFile = null;
 let currentMode = "beginner";
@@ -38,66 +34,23 @@ let isAnalyzing = false;
 // 请求超时时间：300 秒（5 分钟）
 // =========================================
 const REQUEST_TIMEOUT_MS = 300000;
+const API_ENDPOINT = "https://api.moonshot.cn/v1/chat/completions";
+const MODEL_FALLBACK_CHAIN = [
+    "kimi-k2.6",
+    "kimi-k2.5",
+    "moonshot-v1-8k-vision-preview",
+    "moonshot-v1-32k-vision-preview",
+    "moonshot-v1-128k-vision-preview"
+];
+
+// 警告：纯前端代码中的 Key 会暴露给所有访问者。请填入受限、可撤销的 Key。
+const API_KEYS = {
+    moonshot: "sk-SBw0Y8tstFdEwW00mUL3u1uKe4ej6q214g7zHCqUj4ooFLFA"
+};
 
 const DEFAULT_SECTION_ANALYSIS = "该维度信息不足，暂未展开详细分析。";
 const DEFAULT_STRENGTHS = ["画面有明确的表达意图。"];
 const DEFAULT_SUGGESTIONS = ["可以尝试换一个更稳定的模型后再次分析。"];
-
-const MODEL_RECOMMENDATIONS = {
-    moonshot: {
-        preferred: "kimi-k2.5",
-        models: {
-            "kimi-k2.5": {
-                badge: "推荐",
-                level: "recommended",
-                message: "更适合稳定输出结构化结果，遇到 JSON 问题时优先试这个。"
-            },
-            "kimi-k2.6": {
-                badge: "注意",
-                level: "warning",
-                message: "表达能力强，但有时更容易返回额外文字；追求稳定时更推荐 kimi-k2.5。"
-            },
-            "moonshot-v1-8k-vision-preview": {
-                badge: "视觉",
-                level: "warning",
-                message: "可用于视觉分析，但返回格式稳定性不如 kimi-k2.5。"
-            },
-            "moonshot-v1-32k-vision-preview": {
-                badge: "视觉",
-                level: "warning",
-                message: "适合更长上下文，但结构化返回稳定性一般。"
-            },
-            "moonshot-v1-128k-vision-preview": {
-                badge: "视觉",
-                level: "warning",
-                message: "适合更长输入，首次使用更建议从 kimi-k2.5 开始。"
-            }
-        }
-    },
-    openai: {
-        preferred: "gpt-4o",
-        models: {
-            "gpt-4o": {
-                badge: "推荐",
-                level: "recommended",
-                message: "结构化输出更稳，适合作为默认选择。"
-            },
-            "gpt-4o-mini": {
-                badge: "轻量",
-                level: "neutral",
-                message: "响应更轻快，但复杂图片下结果细节可能略少。"
-            }
-        }
-    }
-};
-
-// =========================================
-// 自动回填保存的 API Key
-// =========================================
-const savedApiKey = localStorage.getItem("ai_photo_api_key");
-if (savedApiKey) {
-    apiKeyInput.value = savedApiKey;
-}
 
 function setHidden(element, hidden) {
     if (!element) return;
@@ -112,17 +65,9 @@ function setAnalyzeStatus(message, tone = "default") {
     if (tone === "error") analyzeStatus.classList.add("is-error");
 }
 
-function getCurrentModelMeta() {
-    const provider = providerSelect.value;
-    const modelName = modelSelect.value;
-    return MODEL_RECOMMENDATIONS[provider]?.models?.[modelName] || null;
-}
-
 function updateAnalyzeButtonState() {
-    const hasApiKey = Boolean(apiKeyInput.value.trim());
+    const hasApiKey = hasConfiguredApiKey();
     const hasImage = Boolean(selectedFile);
-    const modelMeta = getCurrentModelMeta();
-    const isRecommendedModel = modelMeta?.level === "recommended";
 
     analyzeBtn.disabled = isAnalyzing || !hasApiKey || !hasImage;
 
@@ -137,18 +82,11 @@ function updateAnalyzeButtonState() {
     }
 
     if (!hasApiKey) {
-        setAnalyzeStatus("填写 API Key 后即可开始分析。");
+        setAnalyzeStatus("尚未配置 Moonshot API Key，请先在 script.js 中填写。", "error");
         return;
     }
 
-    if (!isRecommendedModel && modelMeta?.level === "warning") {
-        setAnalyzeStatus("当前模型可用，如果更看重稳定性，可以优先试推荐模型。");
-        return;
-    }
-
-    const provider = providerSelect.options[providerSelect.selectedIndex]?.textContent || providerSelect.value;
-    const model = modelSelect.value;
-    setAnalyzeStatus(`已就绪：${provider} / ${model}，可以开始分析。`);
+    setAnalyzeStatus("已就绪，将从 kimi-k2.6 开始分析。", "ready");
 }
 
 function showErrorCard(state) {
@@ -186,23 +124,23 @@ function createErrorState(kind, fallbackMessage) {
         validation: {
             eyebrow: "请先补齐信息",
             title: "还不能开始分析",
-            description: fallbackMessage || "请先上传图片并填写可用的 API Key。",
-            tips: ["确认已经上传图片。", "确认 API Key 已填写完整。"],
+            description: fallbackMessage || "请先上传图片，并确认站点已配置可用的 API Key。",
+            tips: ["确认已经上传图片。", "确认 Moonshot API Key 已在代码中配置。"],
             actionLabel: "回到设置"
         },
         timeout: {
             eyebrow: "请求超时",
             title: "这次分析花的时间有点久",
             description: "超过 5 分钟仍未拿到结果，通常是网络波动、图片过大或服务拥堵导致。",
-            tips: ["换一张更小的图片再试。", "优先选择推荐模型。", "确认网络可稳定访问对应 API。"],
+            tips: ["换一张更小的图片再试。", "系统会自动尝试后备模型。", "确认网络可稳定访问 Moonshot API。"],
             actionLabel: "重新分析"
         },
         format: {
             eyebrow: "返回格式异常",
             title: "模型没有按预期返回结构化结果",
             description: "这通常不是你的操作问题，而是当前模型输出了额外文字或截断了 JSON。",
-            tips: ["优先切换到推荐模型后重试。", "如果是 Moonshot，先试 kimi-k2.5。", "如果是 OpenAI，优先使用 gpt-4o。"],
-            actionLabel: "换模型后重试"
+            tips: ["系统已自动尝试全部后备模型。", "可以稍后重新分析，排除临时输出波动。"],
+            actionLabel: "重新分析"
         },
         api: {
             eyebrow: "接口调用失败",
@@ -229,8 +167,8 @@ function createErrorState(kind, fallbackMessage) {
         generic: {
             eyebrow: "分析失败",
             title: "这次没有成功完成分析",
-            description: fallbackMessage || "请稍后重试，或换一个模型再试。",
-            tips: ["优先尝试推荐模型。", "确认网络与 API Key 都正常。"],
+            description: fallbackMessage || "请稍后重试，系统会自动尝试全部后备模型。",
+            tips: ["确认网络与 API Key 都正常。", "稍后重试，排除服务临时波动。"],
             actionLabel: "重新分析"
         }
     };
@@ -638,85 +576,17 @@ const USER_PROMPT_BEGINNER = `
 `;
 
 // =========================================
-// Provider & Model Switcher
+// Moonshot API
 // =========================================
 
-const MODELS = {
-    moonshot: [
-        { value: "kimi-k2.6", label: "kimi-k2.6" },
-        { value: "kimi-k2.5", label: "kimi-k2.5" },
-        { value: "moonshot-v1-8k-vision-preview", label: "moonshot-v1-8k-vision" },
-        { value: "moonshot-v1-32k-vision-preview", label: "moonshot-v1-32k-vision" },
-        { value: "moonshot-v1-128k-vision-preview", label: "moonshot-v1-128k-vision" }
-    ],
-    openai: [
-        { value: "gpt-4o", label: "gpt-4o" },
-        { value: "gpt-4o-mini", label: "gpt-4o-mini" }
-    ]
-};
-
-const API_ENDPOINTS = {
-    moonshot: "https://api.moonshot.cn/v1/chat/completions",
-    openai: "https://api.openai.com/v1/chat/completions"
-};
-
-function populateModels(provider) {
-    modelSelect.innerHTML = "";
-    const models = MODELS[provider] || MODELS.moonshot;
-    models.forEach((m, i) => {
-        const opt = document.createElement("option");
-        opt.value = m.value;
-        const recommendedModel = MODEL_RECOMMENDATIONS[provider]?.preferred;
-        opt.textContent = m.value === recommendedModel ? `${m.label}（推荐）` : m.label;
-        if (i === 0) opt.selected = true;
-        modelSelect.appendChild(opt);
-    });
-
-    const preferred = MODEL_RECOMMENDATIONS[provider]?.preferred;
-    if (preferred) {
-        modelSelect.value = preferred;
-    }
-    updateAnalyzeButtonState();
+function getApiKey() {
+    return String(API_KEYS.moonshot || "").trim();
 }
 
-// Initialize
-populateModels("moonshot");
-
-providerSelect.addEventListener("change", () => {
-    populateModels(providerSelect.value);
-    hideErrorCard();
-});
-
-modelSelect.addEventListener("change", () => {
-    updateAnalyzeButtonState();
-});
-
-apiKeyInput.addEventListener("input", () => {
-    updateAnalyzeButtonState();
-});
-
-apiKeyInput.addEventListener("blur", () => {
-    const val = apiKeyInput.value.trim();
-    if (val) {
-        localStorage.setItem("ai_photo_api_key", val);
-    } else {
-        localStorage.removeItem("ai_photo_api_key");
-    }
-    updateAnalyzeButtonState();
-});
-
-toggleApiKeyBtn.addEventListener("click", () => {
-    const shouldShow = apiKeyInput.type === "password";
-    apiKeyInput.type = shouldShow ? "text" : "password";
-    toggleApiKeyBtn.textContent = shouldShow ? "隐藏" : "显示";
-});
-
-clearApiKeyBtn.addEventListener("click", () => {
-    apiKeyInput.value = "";
-    localStorage.removeItem("ai_photo_api_key");
-    updateAnalyzeButtonState();
-    apiKeyInput.focus();
-});
+function hasConfiguredApiKey() {
+    const apiKey = getApiKey();
+    return Boolean(apiKey && !apiKey.startsWith("请替换为你的_"));
+}
 
 retryAnalyzeBtn.addEventListener("click", () => {
     hideErrorCard();
@@ -1187,26 +1057,65 @@ function parseAiResult(rawContent) {
 }
 
 // =========================================
-// Analyze (direct API call with user key)
+// Analyze (direct API call with site-configured key)
 // =========================================
 
-analyzeBtn.addEventListener("click", async () => {
-    const apiKey = apiKeyInput.value.trim();
-    const modelName = modelSelect.value.trim();
-    const provider = providerSelect.value;
+async function requestAnalysis({ modelName, apiKey, imageBase64, systemPrompt, userPrompt, signal }) {
+    const body = {
+        model: modelName,
+        temperature: 1,
+        messages: [
+            { role: "system", content: systemPrompt },
+            {
+                role: "user",
+                content: [
+                    { type: "image_url", image_url: { url: imageBase64 } },
+                    { type: "text", text: userPrompt }
+                ]
+            }
+        ]
+    };
 
-    if (!apiKey) {
-        showErrorCard(createErrorState("validation", "请输入 API Key 后再开始分析。"));
-        apiKeyInput.focus();
+    const response = await fetch(API_ENDPOINT, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(body),
+        signal
+    });
+
+    if (!response.ok) {
+        let errDetail = `HTTP ${response.status}`;
+        try {
+            const errBody = await response.json();
+            errDetail = errBody.error?.message || errBody.error || errDetail;
+        } catch (_) { }
+        const error = new Error(`API 错误：${errDetail}`);
+        error.status = response.status;
+        throw error;
+    }
+
+    const data = await response.json();
+    const rawContent = data.choices?.[0]?.message?.content;
+    if (!rawContent) {
+        throw new Error("AI 返回内容为空");
+    }
+    return rawContent;
+}
+
+analyzeBtn.addEventListener("click", async () => {
+    const apiKey = getApiKey();
+
+    if (!hasConfiguredApiKey()) {
+        showErrorCard(createErrorState("validation", "尚未配置 Moonshot API Key，请先在 script.js 的 API_KEYS 中填写。"));
         return;
     }
     if (!selectedFile) {
         showErrorCard(createErrorState("validation", "请先上传图片，再开始分析。"));
         return;
     }
-
-    // ✅ 自动保存到本地（验证通过后再存，避免存空值或错误值）
-    localStorage.setItem("ai_photo_api_key", apiKey);
 
     isAnalyzing = true;
 
@@ -1258,69 +1167,75 @@ ISO：${extractedExif.iso || "未知"}
         exifText = "\n\n（该图片未包含 EXIF 信息，无法读取拍摄参数，请仅基于画面内容进行评价。）";
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
     try {
         startStageRotation();
 
         const imageBase64 = await fileToBase64(selectedFile);
-        const endpoint = API_ENDPOINTS[provider] || API_ENDPOINTS.moonshot;
+        const attemptModels = MODEL_FALLBACK_CHAIN;
+        let result = null;
+        let fallbackResult = null;
+        let fallbackModel = "";
+        let lastError = null;
+        let successfulAttemptIndex = -1;
+        let usedModel = "";
 
-        const body = {
-            model: modelName,
-            temperature: provider === "moonshot" ? 1 : 0.5,
-            messages: [
-                { role: "system", content: systemPrompt },
-                {
-                    role: "user",
-                    content: [
-                        { type: "image_url", image_url: { url: imageBase64 } },
-                        { type: "text", text: userPrompt + exifText }
-                    ]
-                }
-            ]
-        };
+        for (let attemptIndex = 0; attemptIndex < attemptModels.length; attemptIndex++) {
+            const attemptModel = attemptModels[attemptIndex];
+            const isRetry = attemptIndex > 0;
+            if (isRetry) {
+                loadingStage.textContent = `当前模型未成功，正在降级到 ${attemptModel}...`;
+                setAnalyzeStatus(`正在尝试后备模型 ${attemptModel}（${attemptIndex + 1}/${attemptModels.length}）。`, "warning");
+            }
 
-        if (provider === "openai") {
-            body.response_format = { type: "json_object" };
-        }
-
-        const response = await fetch(endpoint, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${apiKey}`
-            },
-            body: JSON.stringify(body),
-            signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-            let errDetail = `HTTP ${response.status}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
             try {
-                const errBody = await response.json();
-                errDetail = errBody.error?.message || errBody.error || errDetail;
-            } catch (_) { }
-            throw new Error(`API 错误：${errDetail}`);
+                const rawContent = await requestAnalysis({
+                    modelName: attemptModel,
+                    apiKey,
+                    imageBase64,
+                    systemPrompt,
+                    userPrompt: userPrompt + exifText,
+                    signal: controller.signal
+                });
+                const parsedResult = parseAiResult(rawContent);
+                if (parsedResult.meta?.parseStrategy === "fallback-text") {
+                    fallbackResult = parsedResult;
+                    fallbackModel = attemptModel;
+                    lastError = new Error("模型返回格式异常");
+                    continue;
+                }
+                result = parsedResult;
+                successfulAttemptIndex = attemptIndex;
+                usedModel = attemptModel;
+                break;
+            } catch (error) {
+                lastError = error;
+            } finally {
+                clearTimeout(timeoutId);
+            }
         }
 
-        const data = await response.json();
-        const rawContent = data.choices?.[0]?.message?.content;
-        if (!rawContent) {
-            throw new Error("AI 返回内容为空");
+        if (!result && fallbackResult) {
+            result = fallbackResult;
+            usedModel = fallbackModel;
+        } else if (!result) {
+            throw lastError || new Error("全部模型均分析失败");
         }
 
-        const result = parseAiResult(rawContent);
-        if (result.meta?.parseStrategy === "extracted-json") {
+        if (successfulAttemptIndex > 0 && result.meta?.parseStrategy === "extracted-json") {
+            setAnalyzeStatus(`自动降级成功：${usedModel} 返回了可用结果。`, "ready");
+        } else if (successfulAttemptIndex > 0) {
+            setAnalyzeStatus(`自动降级成功：已使用 ${usedModel} 完成分析。`, "ready");
+        } else if (result.meta?.parseStrategy === "extracted-json") {
             setAnalyzeStatus("分析已完成：模型返回了额外文字，系统已自动提取有效结果。");
         } else if (result.meta?.parseStrategy === "fallback-text") {
-            setAnalyzeStatus("分析已完成：模型未返回标准 JSON，当前为降级展示结果。");
+            setAnalyzeStatus("全部模型均未返回标准 JSON，当前已降级展示最后一份原始结果。", "warning");
         } else {
-            updateAnalyzeButtonState();
+            setAnalyzeStatus("分析已完成。", "ready");
         }
+
+        modelUsedNote.textContent = `本次分析使用模型：${usedModel}`;
 
         if (currentMode === "professional") {
             renderResultProfessional(result);
@@ -1329,14 +1244,12 @@ ISO：${extractedExif.iso || "未知"}
         }
 
     } catch (error) {
-        clearTimeout(timeoutId);
-
         if (error.name === 'AbortError') {
             showErrorCard(createErrorState("timeout"));
             setAnalyzeStatus("分析超时了，建议换更稳定的模型或更小的图片重试。", "error");
         } else if (error.message.includes('JSON') || error.message.includes('格式异常')) {
             showErrorCard(createErrorState("format"));
-            setAnalyzeStatus("模型没有稳定返回结构化结果，建议先切换推荐模型。", "error");
+            setAnalyzeStatus("全部模型都没有稳定返回结构化结果，请稍后重试。", "error");
         } else if (error.message.includes('API 错误') || error.message.includes('HTTP')) {
             showErrorCard(createErrorState("api", error.message));
             setAnalyzeStatus("接口请求失败了，请检查 Key、额度或服务状态。", "error");
@@ -1345,12 +1258,11 @@ ISO：${extractedExif.iso || "未知"}
             setAnalyzeStatus("网络连接失败，请确认当前网络可以访问对应 API。", "error");
         } else {
             showErrorCard(createErrorState("generic", `分析失败：${error.message}`));
-            setAnalyzeStatus("这次分析没有成功完成，可以换个模型再试。", "error");
+            setAnalyzeStatus("这次分析没有成功完成，请稍后重试。", "error");
         }
         console.error("完整错误：", error);
 
     } finally {
-        clearTimeout(timeoutId);
         stopLoadingAnimation();
         loadingSection.classList.add("hidden");
         analyzeBtnText.textContent = originalBtnText;
@@ -1384,6 +1296,7 @@ function resetAnalysisState() {
     if (photoType) photoType.textContent = "未识别类型";
     if (overallSummary) overallSummary.textContent = "";
     if (encouragementText) encouragementText.textContent = "";
+    if (modelUsedNote) modelUsedNote.textContent = "";
 
     document.getElementById("summaryCard").classList.add("hidden");
     document.getElementById("scoreGrid").classList.add("hidden");
@@ -1773,6 +1686,13 @@ saveImageBtn.addEventListener("click", async () => {
                 clone.style.padding = "24px";
                 contentWrapper.appendChild(clone);
             });
+        }
+
+        if (modelUsedNote.textContent) {
+            const modelNoteClone = modelUsedNote.cloneNode(true);
+            modelNoteClone.removeAttribute("id");
+            modelNoteClone.style.cssText = `margin: -4px 0 0; text-align: right; font-size: 12px; color: ${exportTextSecondary};`;
+            contentWrapper.appendChild(modelNoteClone);
         }
 
         tempContainer.appendChild(contentWrapper);
