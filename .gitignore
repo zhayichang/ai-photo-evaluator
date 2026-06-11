@@ -1,1 +1,10 @@
 更新记录.md
+.env
+.env.*
+!.env.example
+node_modules/
+.s/
+.fc/
+.DS_Store
+server.zip
+server-deploy.zip

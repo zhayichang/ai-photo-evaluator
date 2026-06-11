@@ -1,0 +1,19 @@
+{
+  "name": "ai-photo-evaluator",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test",
+    "check": "node --check script.js && node --check server/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@alicloud/captcha20230305": "^1.1.0",
+    "@alicloud/openapi-client": "^0.4.15",
+    "ioredis": "^5.4.2"
+  }
+}
