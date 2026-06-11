@@ -1,3 +1,5 @@
+import { parseJsonWithBareQuoteRepair } from "./json-repair.js";
+
 const imageInput = document.getElementById("imageInput");
 const replaceBtn = document.getElementById("replaceBtn");
 const previewImage = document.getElementById("previewImage");
@@ -963,8 +965,9 @@ function parseAiResult(rawContent) {
     for (const candidate of candidates) {
         if (!candidate.text) continue;
         try {
-            const parsed = JSON.parse(candidate.text);
-            return standardizeResult(parsed, { parseStrategy: candidate.strategy, rawText: directText });
+            const parsed = parseJsonWithBareQuoteRepair(candidate.text);
+            const parseStrategy = parsed.repaired ? "repaired-json" : candidate.strategy;
+            return standardizeResult(parsed.value, { parseStrategy, rawText: directText });
         } catch (_) {
             // continue to next strategy
         }
@@ -1131,7 +1134,9 @@ analyzeBtn.addEventListener("click", async () => {
         });
         const result = parseAiResult(response.rawContent);
 
-        if (result.meta?.parseStrategy === "extracted-json") {
+        if (result.meta?.parseStrategy === "repaired-json") {
+            setAnalyzeStatus("分析已完成：模型返回的 JSON 引号格式有误，系统已自动修复。");
+        } else if (result.meta?.parseStrategy === "extracted-json") {
             setAnalyzeStatus("分析已完成：模型返回了额外文字，系统已自动提取有效结果。");
         } else if (result.meta?.parseStrategy === "fallback-text") {
             setAnalyzeStatus("模型未返回标准 JSON，当前已降级展示原始结果。", "warning");
