@@ -52,6 +52,7 @@ function setHidden(element, hidden) {
 }
 
 function setAnalyzeStatus(message, tone = "default") {
+    if (!analyzeStatus) return;
     analyzeStatus.textContent = message;
     analyzeStatus.classList.remove("is-ready", "is-warning", "is-error");
     if (tone === "ready") analyzeStatus.classList.add("is-ready");

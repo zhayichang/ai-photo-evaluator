@@ -74,9 +74,9 @@ export async function enforceRateLimits(store, ip, env = process.env) {
     const hourKey = now.toISOString().slice(0, 13);
     const dayKey = now.toISOString().slice(0, 10);
     const limits = [
-        [`rate:ip-hour:${ip}:${hourKey}`, Number(env.RATE_LIMIT_IP_HOURLY || 3), 3700],
-        [`rate:ip-day:${ip}:${dayKey}`, Number(env.RATE_LIMIT_IP_DAILY || 10), 90000],
-        [`rate:global-day:${dayKey}`, Number(env.RATE_LIMIT_GLOBAL_DAILY || 100), 90000]
+        [`rate:ip-hour:${ip}:${hourKey}`, Number(env.RATE_LIMIT_IP_HOURLY || 10), 3700],
+        [`rate:ip-day:${ip}:${dayKey}`, Number(env.RATE_LIMIT_IP_DAILY || 50), 90000],
+        [`rate:global-day:${dayKey}`, Number(env.RATE_LIMIT_GLOBAL_DAILY || 500), 90000]
     ];
 
     for (const [key, limit, ttl] of limits) {

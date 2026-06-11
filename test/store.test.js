@@ -9,7 +9,7 @@ test("development memory store supports deduplication", async () => {
     assert.deepEqual(await store.get("lock"), { active: true });
 });
 
-test("rate limiter rejects the fourth hourly request by default", async () => {
+test("rate limiter enforces the configured hourly limit", async () => {
     const store = createStore({ NODE_ENV: "test" });
     const env = {
         RATE_LIMIT_IP_HOURLY: "3",

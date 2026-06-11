@@ -107,6 +107,10 @@ button,
     align-self: start;
 }
 
+.result-section {
+    position: relative;
+}
+
 .title-glass {
     position: relative;
     overflow: hidden;
@@ -746,26 +750,6 @@ select option {
 .btn-inline {
     min-width: 52px;
     padding: 11px 12px;
-}
-
-.analyze-status {
-    margin: -8px 0 20px;
-    font-size: 13px;
-    line-height: 1.6;
-    color: var(--text-secondary);
-    min-height: 24px;
-}
-
-.analyze-status.is-ready {
-    color: var(--text-secondary);
-}
-
-.analyze-status.is-warning {
-    color: var(--text-secondary);
-}
-
-.analyze-status.is-error {
-    color: var(--danger);
 }
 
 /* EXIF Display Card — 统一为白色卡片风格 */
@@ -1444,6 +1428,26 @@ select option {
     text-align: right;
     font-size: 12px;
     color: var(--text-secondary);
+}
+
+@media (min-width: 981px) {
+    .app-layout:has(.result-section:not(.hidden)) {
+        margin-bottom: 28px;
+    }
+
+    .app-layout:has(.result-section:not(.hidden)) .analyze-btn,
+    .result-section:not(.hidden) .analysis-container:not(.hidden),
+    .result-section:not(.hidden) .tips-card:not(.hidden) {
+        margin-bottom: 0;
+    }
+
+    .result-section:not(.hidden) .model-used-note {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        width: 100%;
+        margin-top: 8px;
+    }
 }
 
 .btn-inline-spinner {
