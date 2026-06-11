@@ -26,30 +26,21 @@ const modelUsedNote = document.getElementById("modelUsedNote");
 let selectedFile = null;
 let currentMode = "beginner";
 let loadingStageInterval = null;
-let loadingProgressInterval = null;
+let analysisProgressInterval = null;
 let extractedExif = null;
 let isAnalyzing = false;
+let activeRequestId = "";
 
 // =========================================
-// 请求超时时间：300 秒（5 分钟）
+// 图片上传与代理响应由浏览器统一等待，服务端单独控制 Moonshot 超时。
 // =========================================
-const REQUEST_TIMEOUT_MS = 300000;
-const API_ENDPOINT = "https://api.moonshot.cn/v1/chat/completions";
+const API_ENDPOINT = window.APP_CONFIG?.apiEndpoint || "/api/analyze";
+const UPLOAD_TIMEOUT_MS = 45000;
+const RESPONSE_TIMEOUT_MS = 210000;
 const IMAGE_MAX_DIMENSION = 1920;
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const IMAGE_INITIAL_QUALITY = 0.88;
 const IMAGE_MIN_QUALITY = 0.58;
-const MODEL_FALLBACK_CHAIN = [
-    "kimi-k2.6",
-    "kimi-k2.5",
-    "moonshot-v1-8k-vision-preview",
-    "moonshot-v1-32k-vision-preview",
-    "moonshot-v1-128k-vision-preview"
-];
-
-const API_KEYS = {
-    moonshot: "sk-SBw0Y8tstFdEwW00mUL3u1uKe4ej6q214g7zHCqUj4ooFLFA"
-};
 
 const DEFAULT_SECTION_ANALYSIS = "该维度信息不足，暂未展开详细分析。";
 const DEFAULT_STRENGTHS = ["画面有明确的表达意图。"];
@@ -69,10 +60,9 @@ function setAnalyzeStatus(message, tone = "default") {
 }
 
 function updateAnalyzeButtonState() {
-    const hasApiKey = hasConfiguredApiKey();
     const hasImage = Boolean(selectedFile);
 
-    analyzeBtn.disabled = isAnalyzing || !hasApiKey || !hasImage;
+    analyzeBtn.disabled = isAnalyzing || !hasImage;
 
     if (isAnalyzing) {
         setAnalyzeStatus("AI 正在分析中，请耐心等待结果返回。");
@@ -84,12 +74,7 @@ function updateAnalyzeButtonState() {
         return;
     }
 
-    if (!hasApiKey) {
-        setAnalyzeStatus("尚未配置 Moonshot API Key，请先在 script.js 中填写。", "error");
-        return;
-    }
-
-    setAnalyzeStatus("已就绪，将从 kimi-k2.6 开始分析。", "ready");
+    setAnalyzeStatus("已就绪，图片将通过本站安全代理发送。", "ready");
 }
 
 function showErrorCard(state) {
@@ -127,15 +112,15 @@ function createErrorState(kind, fallbackMessage) {
         validation: {
             eyebrow: "请先补齐信息",
             title: "还不能开始分析",
-            description: fallbackMessage || "请先上传图片，并确认站点已配置可用的 API Key。",
-            tips: ["确认已经上传图片。", "确认 Moonshot API Key 已在代码中配置。"],
-            actionLabel: "回到设置"
+            description: fallbackMessage || "请先上传一张有效图片。",
+            tips: ["确认已经上传 JPG、PNG 或 WebP 图片。"],
+            actionLabel: "返回上传"
         },
         timeout: {
             eyebrow: "请求超时",
             title: "这次分析花的时间有点久",
-            description: "超过 5 分钟仍未拿到结果，通常是网络波动、图片过大或服务拥堵导致。",
-            tips: ["换一张更小的图片再试。", "系统会自动尝试后备模型。", "确认网络可稳定访问 Moonshot API。"],
+            description: "上传或 AI 分析超过等待时间，通常是网络波动或服务拥堵导致。",
+            tips: ["请切换到更稳定的网络后重试。", "不要连续点击重试，同一请求会进行短时间去重。"],
             actionLabel: "重新分析"
         },
         format: {
@@ -148,9 +133,30 @@ function createErrorState(kind, fallbackMessage) {
         api: {
             eyebrow: "接口调用失败",
             title: "AI 服务暂时没有成功响应",
-            description: fallbackMessage || "请检查 API Key、额度和服务状态后重试。",
-            tips: ["401 通常是 Key 无效或已过期。", "429 通常是请求过快或额度用尽。", "5xx 通常是服务商暂时异常。"],
-            actionLabel: "检查后重试"
+            description: fallbackMessage || "服务暂时不可用，请稍后重试。",
+            tips: ["如果持续失败，可能是服务额度不足或上游暂时异常。"],
+            actionLabel: "稍后重试"
+        },
+        payload: {
+            eyebrow: "图片过大",
+            title: "压缩后的图片仍超过上传限制",
+            description: "请换一张尺寸更小的图片。",
+            tips: ["上传前会自动压缩至 1920px / 5MB 以内。"],
+            actionLabel: "调整后重试"
+        },
+        rateLimit: {
+            eyebrow: "请求较多",
+            title: "当前使用次数已达到限制",
+            description: fallbackMessage || "请稍后再试，避免短时间重复提交。",
+            tips: ["默认每个网络地址每小时 3 次、每天 10 次。"],
+            actionLabel: "稍后重试"
+        },
+        captcha: {
+            eyebrow: "安全验证未通过",
+            title: "需要重新完成人机验证",
+            description: fallbackMessage || "验证已过期或未完成，请刷新验证后重试。",
+            tips: ["关闭拦截脚本的浏览器扩展后再试。"],
+            actionLabel: "重新验证"
         },
         network: {
             eyebrow: "网络连接失败",
@@ -170,8 +176,8 @@ function createErrorState(kind, fallbackMessage) {
         generic: {
             eyebrow: "分析失败",
             title: "这次没有成功完成分析",
-            description: fallbackMessage || "请稍后重试，系统会自动尝试全部后备模型。",
-            tips: ["确认网络与 API Key 都正常。", "稍后重试，排除服务临时波动。"],
+            description: fallbackMessage || "请稍后重试。",
+            tips: ["确认网络连接正常。", "稍后重试，排除服务临时波动。"],
             actionLabel: "重新分析"
         }
     };
@@ -446,21 +452,8 @@ function formatExif(exif) {
         };
         fmt.orientation = orientations[exif.orientation] || "未知";
     }
-    if (exif.cameraOwnerName) fmt.owner = exif.cameraOwnerName;
     if (exif.software) fmt.software = exif.software;
-    if (exif.gpsLatitude && exif.gpsLatitudeRef && exif.gpsLongitude && exif.gpsLongitudeRef) {
-        fmt.gps = `${formatGpsCoordinate(exif.gpsLatitude, exif.gpsLatitudeRef)}, ${formatGpsCoordinate(exif.gpsLongitude, exif.gpsLongitudeRef)}`;
-    }
     return fmt;
-}
-
-function formatGpsCoordinate(value, ref) {
-    if (!Array.isArray(value) || value.length < 3) return "";
-    const [deg, min, sec] = value;
-    const degrees = Number(deg);
-    const minutes = Number(min);
-    const seconds = Number(sec);
-    return `${ref} ${degrees}°${minutes}′${seconds.toFixed(1)}″`;
 }
 
 function normalizeExifDateTime(value) {
@@ -473,123 +466,11 @@ function normalizeExifDateTime(value) {
     return trimmed;
 }
 
-// =========================================
-// Prompts
-// =========================================
-
-const SYSTEM_PROMPT_PRO = `
-你是一名专业摄影评论家与视觉艺术导师。
-
-【分析流程】
-1. 先判断摄影类型（风光、人像、人文纪实、街头、建筑、微距、静物、动物、运动、夜景/天文等）。
-2. 基于类型调用对应评价维度，不同类侧重点不同：
-   - 风光：构图层次、光影氛围、色彩和谐、前景/中景/远景关系。
-   - 人像：情绪表达、眼神/姿态、背景与主体关系、肤色还原、焦外质量。
-   - 人文/纪实：瞬间抓取、故事性、环境信息、时代感。
-   - 街头：决定性瞬间、光影几何、环境张力、戏剧性。
-   - 建筑：线条透视、空间结构、光影切割、材质表现。
-   - 微距/静物：细节质感、景深控制、布光、背景纯净度。
-   - 动物/生态：动态捕捉、眼神光、环境融合。
-   - 夜景/天文：曝光控制、星点/光轨质量、暗部噪点、地景与天空平衡。
-3. 如有EXIF信息，可以结合EXIF信息分析前期拍摄环境、拍摄策略选择与后期处理情况。
-4. 在 photo_type 字段写明判断的类型。
-
-【输出规则】
-- 必须输出合法 JSON，不允许 Markdown，不允许额外解释。
-- 所有评分 0-10，客观诚实，允许各维度拉开差距。
-- 以爱好者标准评价普通作品，不刻意找缺点，不攻击创作者。
-- 优先指出作品成立的部分，再讨论可优化之处。
-- 遇到明显技术偏差（如过曝/欠曝、焦点不实、非常规构图等）时，应考虑是否可能为作者有意为之的艺术表达，并予以说明。
-- 构图、光影、色彩分析应同时考虑前期与后期。
-- 使用"可以进一步优化""如果调整会更好"等建设性表达。
-
-
-【评分参考】
-- 1-3：基础缺失或严重失误。
-- 4-5：爱好者普通水平，有明显不足。
-- 6：及格，完整但缺乏亮点。
-- 7：良好，有可取之处。
-- 8：优秀，至少一个维度突出。
-- 9：出色，接近专业水准。
-- 10：卓越，具艺术感染力。
-
-【评分原则】
-- 该高则高、该低则低，综合评分不是平均分，可偏向最突出或最拖后腿的维度。
-
-JSON结构如下：
-{
-  "photo_type": "",
-  "photography_style": [],
-  "overall_summary": "",
-  "scores": { "composition": 0, "lighting": 0, "color": 0, "storytelling": 0, "overall": 0 },
-  "composition": { "analysis": "", "strengths": [], "improvements": [], "suggestions": [] },
-  "lighting": { "analysis": "", "strengths": [], "improvements": [], "suggestions": [] },
-  "color": { "analysis": "", "strengths": [], "improvements": [], "suggestions": [] },
-  "storytelling": { "analysis": "", "strengths": [], "improvements": [], "suggestions": [] },
-  "advanced_analysis": { "visual_focus": "", "depth_and_layers": "", "visual_flow": "", "emotional_tone": "", "style_reference": [] }
-}
-`;
-
-const SYSTEM_PROMPT_BEGINNER = `
-你是一名热情的摄影爱好者导师，擅长用温暖、易懂的语言帮助新手发现照片的美好。
-
-【分析流程】
-1. 先判断照片类型（风光、人像、人文、街头、建筑、微距、动物、夜景等）。
-2. 从该类最打动人的角度分析，不用面面俱到：
-   - 风光多聊构图和天气氛围；
-   - 人像多聊情绪和眼神；
-   - 人文多聊故事感和瞬间。
-3. 用新手能听懂的话，像朋友一样交流。
-
-【输出规则】
-- 必须输出合法 JSON，不允许 Markdown，不允许额外解释。
-- 评分 0-10，诚实但稍微宽容。
-- 通俗语言，避免专业术语。
-- 以鼓励和发现优点为主，建议简单、可执行。
-- overall_summary 温暖自然，控制在 50 字以内。
-
-JSON结构如下：
-{
-  "photo_type": "",
-  "photography_style": [],
-  "overall_summary": "",
-  "scores": { "composition": 0, "lighting": 0, "color": 0, "storytelling": 0, "overall": 0 },
-  "composition": { "analysis": "", "strengths": [], "improvements": [], "suggestions": [] },
-  "lighting": { "analysis": "", "strengths": [], "improvements": [], "suggestions": [] },
-  "color": { "analysis": "", "strengths": [], "improvements": [], "suggestions": [] },
-  "storytelling": { "analysis": "", "strengths": [], "improvements": [], "suggestions": [] },
-  "advanced_analysis": { "visual_focus": "", "depth_and_layers": "", "visual_flow": "", "emotional_tone": "", "style_reference": [] }
-}
-`;
-
-const USER_PROMPT_PRO = `
-请对这张摄影作品进行完整专业评价。
-
-重点分析：构图、光线、色彩、情绪、叙事、摄影风格、专业完成度。
-总体评价控制在60字以内，要求精炼。
-`;
-
-const USER_PROMPT_BEGINNER = `
-请对这张摄影作品进行友好、鼓励性的评价。
-
-像朋友一样和拍摄者聊聊：
-- 这张照片最打动人的地方是什么？
-- 有哪些值得表扬的优点？
-- 给新手一两个简单、好上手的改进建议
-`;
-
-// =========================================
-// Moonshot API
-// =========================================
-
-function getApiKey() {
-    return String(API_KEYS.moonshot || "").trim();
-}
-
-function hasConfiguredApiKey() {
-    const apiKey = getApiKey();
-    return Boolean(apiKey && !apiKey.startsWith("请替换为你的_"));
-}
+// 阿里云验证码完成后，由接入脚本调用此方法写入一次性核验参数。
+let captchaVerifyParam = "";
+window.setPhotoEvaluatorCaptcha = (value) => {
+    captchaVerifyParam = typeof value === "string" ? value : "";
+};
 
 retryAnalyzeBtn.addEventListener("click", () => {
     hideErrorCard();
@@ -611,6 +492,7 @@ document.querySelectorAll(".mode-card").forEach(card => {
         document.querySelectorAll(".mode-card").forEach(c => c.classList.remove("active"));
         card.classList.add("active");
         currentMode = card.dataset.mode;
+        activeRequestId = "";
 
         analyzeBtnText.textContent = currentMode === "professional"
             ? "开始专业分析"
@@ -642,6 +524,7 @@ function handleFile(file) {
     }
 
     selectedFile = file;
+    activeRequestId = "";
     extractedExif = null;
     hideErrorCard();
     updateAnalyzeButtonState();
@@ -668,9 +551,12 @@ function handleFile(file) {
             useOriginalFile(compressedFile);
         })
         .catch(err => {
-            console.error("压缩失败，使用原图", err);
-            selectedFile = file;
-            useOriginalFile(file);
+            console.error("图片压缩失败", err);
+            selectedFile = null;
+            uploadLoading.classList.add("hidden");
+            uploadPlaceholder.classList.remove("hidden");
+            showErrorCard(createErrorState("payload", "图片无法压缩到安全上传范围，请换一张图片。"));
+            updateAnalyzeButtonState();
         });
 }
 
@@ -806,9 +692,7 @@ function renderExifCard(exif) {
     if (exif.flash) items.push(`<span class="exif-tag">⚡ ${escapeHtml(exif.flash)}</span>`);
     if (exif.whiteBalance) items.push(`<span class="exif-tag">🎨 ${escapeHtml(exif.whiteBalance)}</span>`);
     if (exif.orientation) items.push(`<span class="exif-tag">🔄 ${escapeHtml(exif.orientation)}</span>`);
-    if (exif.owner) items.push(`<span class="exif-tag">👤 ${escapeHtml(exif.owner)}</span>`);
     if (exif.software) items.push(`<span class="exif-tag">💻 ${escapeHtml(exif.software)}</span>`);
-    if (exif.gps) items.push(`<span class="exif-tag">📍 ${escapeHtml(exif.gps)}</span>`);
 
     if (items.length === 0) return;
 
@@ -864,27 +748,6 @@ uploadPlaceholder.addEventListener("click", () => {
     imageInput.click();
 });
 
-// =========================================
-// Loading Animation
-// =========================================
-
-function startFakeProgress() {
-    const bar = document.getElementById("loadingProgress");
-    bar.style.width = "0%";
-    bar.style.transition = "width 0.8s cubic-bezier(0.22, 1, 0.36, 1)";
-
-    setTimeout(() => bar.style.width = "15%", 300);
-
-    let progress = 15;
-    loadingProgressInterval = setInterval(() => {
-        if (progress < 90) {
-            progress += Math.random() * 5 + 2;
-            if (progress > 90) progress = 90;
-            bar.style.width = progress + "%";
-        }
-    }, 8000);
-}
-
 function startStageRotation() {
     const stages = currentMode === "professional"
         ? ["正在识别照片类型...", "正在分析构图...", "正在评估光影...", "正在整理色彩...", "正在感受情绪与叙事...", "正在生成专业评价..."]
@@ -903,9 +766,25 @@ function startStageRotation() {
     }, 8000);
 }
 
+function startAnalysisProgress() {
+    const bar = document.getElementById("loadingProgress");
+    clearInterval(analysisProgressInterval);
+    let progress = 15;
+
+    bar.style.transition = "width 0.8s cubic-bezier(0.22, 1, 0.36, 1)";
+    bar.style.width = `${progress}%`;
+
+    analysisProgressInterval = setInterval(() => {
+        if (progress >= 92) return;
+        const remaining = 92 - progress;
+        progress = Math.min(92, progress + Math.max(0.4, Math.min(3, remaining * 0.08)));
+        bar.style.width = `${progress}%`;
+    }, 1800);
+}
+
 function stopLoadingAnimation() {
     clearInterval(loadingStageInterval);
-    clearInterval(loadingProgressInterval);
+    clearInterval(analysisProgressInterval);
 
     const bar = document.getElementById("loadingProgress");
     bar.style.transition = "width 0.3s ease";
@@ -1097,61 +976,112 @@ function parseAiResult(rawContent) {
 }
 
 // =========================================
-// Analyze (direct API call with site-configured key)
+// Analyze through the same-origin security proxy
 // =========================================
 
-async function requestAnalysis({ modelName, apiKey, imageBase64, systemPrompt, userPrompt, signal }) {
-    const body = {
-        model: modelName,
-        temperature: 1,
-        messages: [
-            { role: "system", content: systemPrompt },
-            {
-                role: "user",
-                content: [
-                    { type: "image_url", image_url: { url: imageBase64 } },
-                    { type: "text", text: userPrompt }
-                ]
+function createRequestId() {
+    if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+    return `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function buildSafeExifPayload() {
+    if (!extractedExif) return {};
+    const allowedFields = [
+        "dateTime", "aperture", "shutterSpeed", "iso", "focalLength",
+        "focalLength35", "camera", "lens", "exposureProgram", "metering",
+        "flash", "whiteBalance", "orientation"
+    ];
+    return Object.fromEntries(
+        allowedFields
+            .filter((key) => extractedExif[key])
+            .map((key) => [key, String(extractedExif[key]).slice(0, 160)])
+    );
+}
+
+function requestAnalysis({ file, mode, requestId }) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        const formData = new FormData();
+        let uploadTimer = null;
+        let responseTimer = null;
+        let uploadFinished = false;
+
+        formData.append("image", file, file.name);
+        formData.append("mode", mode);
+        formData.append("requestId", requestId);
+        formData.append("exif", JSON.stringify(buildSafeExifPayload()));
+        if (captchaVerifyParam) {
+            formData.append("captchaVerifyParam", captchaVerifyParam);
+        }
+
+        const fail = (message, code, status = 0) => {
+            const error = new Error(message);
+            error.code = code;
+            error.status = status;
+            reject(error);
+        };
+
+        xhr.open("POST", API_ENDPOINT);
+        xhr.responseType = "json";
+
+        uploadTimer = setTimeout(() => {
+            if (!uploadFinished) {
+                xhr.abort();
+                fail("图片上传超时", "UPLOAD_TIMEOUT");
             }
-        ]
-    };
+        }, UPLOAD_TIMEOUT_MS);
 
-    const response = await fetch(API_ENDPOINT, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`
-        },
-        body: JSON.stringify(body),
-        signal
+        xhr.upload.onprogress = (event) => {
+            if (!event.lengthComputable) return;
+            const percent = Math.min(100, Math.round((event.loaded / event.total) * 100));
+            const totalProgress = Math.round(percent * 0.15);
+            loadingText.textContent = "正在上传图片...";
+            loadingSub.textContent = `已上传 ${percent}%`;
+            loadingStage.textContent = "图片仅上传一次，请保持页面开启";
+            document.getElementById("loadingProgress").style.width = `${totalProgress}%`;
+        };
+
+        xhr.upload.onload = () => {
+            uploadFinished = true;
+            captchaVerifyParam = "";
+            clearTimeout(uploadTimer);
+            loadingText.textContent = currentMode === "professional" ? "正在分析作品..." : "正在发现照片的美好...";
+            loadingSub.textContent = "图片上传完成，AI 正在分析";
+            startAnalysisProgress();
+            startStageRotation();
+            responseTimer = setTimeout(() => {
+                xhr.abort();
+                fail("AI 分析超时", "ANALYSIS_TIMEOUT");
+            }, RESPONSE_TIMEOUT_MS);
+        };
+
+        xhr.onload = () => {
+            clearTimeout(uploadTimer);
+            clearTimeout(responseTimer);
+            const data = xhr.response || {};
+            if (xhr.status >= 200 && xhr.status < 300) {
+                resolve(data);
+                return;
+            }
+            fail(data.message || `服务返回 HTTP ${xhr.status}`, data.code || "API_ERROR", xhr.status);
+        };
+
+        xhr.onerror = () => {
+            clearTimeout(uploadTimer);
+            clearTimeout(responseTimer);
+            fail("网络连接失败", "NETWORK_ERROR");
+        };
+
+        xhr.onabort = () => {
+            clearTimeout(uploadTimer);
+            clearTimeout(responseTimer);
+        };
+
+        xhr.send(formData);
     });
-
-    if (!response.ok) {
-        let errDetail = `HTTP ${response.status}`;
-        try {
-            const errBody = await response.json();
-            errDetail = errBody.error?.message || errBody.error || errDetail;
-        } catch (_) { }
-        const error = new Error(`API 错误：${errDetail}`);
-        error.status = response.status;
-        throw error;
-    }
-
-    const data = await response.json();
-    const rawContent = data.choices?.[0]?.message?.content;
-    if (!rawContent) {
-        throw new Error("AI 返回内容为空");
-    }
-    return rawContent;
 }
 
 analyzeBtn.addEventListener("click", async () => {
-    const apiKey = getApiKey();
-
-    if (!hasConfiguredApiKey()) {
-        showErrorCard(createErrorState("validation", "尚未配置 Moonshot API Key，请先在 script.js 的 API_KEYS 中填写。"));
-        return;
-    }
     if (!selectedFile) {
         showErrorCard(createErrorState("validation", "请先上传图片，再开始分析。"));
         return;
@@ -1184,98 +1114,31 @@ analyzeBtn.addEventListener("click", async () => {
     document.getElementById("tipsCard").classList.add("hidden");
     document.getElementById("summaryCard").classList.add("hidden");
 
-    startFakeProgress();
+    const progressBar = document.getElementById("loadingProgress");
+    progressBar.style.width = "0%";
+    loadingText.textContent = "正在上传图片...";
+    loadingSub.textContent = "正在建立安全连接";
+    loadingStage.textContent = "准备上传压缩后的图片";
     loadingSection.scrollIntoView({ behavior: "smooth", block: "center" });
 
-    const systemPrompt = currentMode === "professional" ? SYSTEM_PROMPT_PRO : SYSTEM_PROMPT_BEGINNER;
-    const userPrompt = currentMode === "professional" ? USER_PROMPT_PRO : USER_PROMPT_BEGINNER;
-
-    // EXIF 文本：如果读取到了信息，则附加到 AI 分析提示中
-    let exifText = "";
-    if (extractedExif && Object.keys(extractedExif).length > 0) {
-        exifText = `
-以下是从照片中读取到的 EXIF 信息，请据此分析拍摄策略与技术选择：
-拍摄时间：${extractedExif.dateTime || "未知"}
-光圈：${extractedExif.aperture || "未知"}
-快门：${extractedExif.shutterSpeed || "未知"}
-ISO：${extractedExif.iso || "未知"}
-焦距：${extractedExif.focalLength || "未知"}
-机型：${extractedExif.camera || "未知"}
-镜头：${extractedExif.lens || "未知"}
-`;
-    } else {
-        exifText = "\n\n（该图片未包含 EXIF 信息，无法读取拍摄参数，请仅基于画面内容进行评价。）";
-    }
-
     try {
-        startStageRotation();
+        if (!activeRequestId) activeRequestId = createRequestId();
+        const response = await requestAnalysis({
+            file: selectedFile,
+            mode: currentMode,
+            requestId: activeRequestId
+        });
+        const result = parseAiResult(response.rawContent);
 
-        const imageBase64 = await fileToBase64(selectedFile);
-        const attemptModels = MODEL_FALLBACK_CHAIN;
-        let result = null;
-        let fallbackResult = null;
-        let fallbackModel = "";
-        let lastError = null;
-        let successfulAttemptIndex = -1;
-        let usedModel = "";
-
-        for (let attemptIndex = 0; attemptIndex < attemptModels.length; attemptIndex++) {
-            const attemptModel = attemptModels[attemptIndex];
-            const isRetry = attemptIndex > 0;
-            if (isRetry) {
-                loadingStage.textContent = `当前模型未成功，正在降级到 ${attemptModel}...`;
-                setAnalyzeStatus(`正在尝试后备模型 ${attemptModel}（${attemptIndex + 1}/${attemptModels.length}）。`, "warning");
-            }
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-            try {
-                const rawContent = await requestAnalysis({
-                    modelName: attemptModel,
-                    apiKey,
-                    imageBase64,
-                    systemPrompt,
-                    userPrompt: userPrompt + exifText,
-                    signal: controller.signal
-                });
-                const parsedResult = parseAiResult(rawContent);
-                if (parsedResult.meta?.parseStrategy === "fallback-text") {
-                    fallbackResult = parsedResult;
-                    fallbackModel = attemptModel;
-                    lastError = new Error("模型返回格式异常");
-                    continue;
-                }
-                result = parsedResult;
-                successfulAttemptIndex = attemptIndex;
-                usedModel = attemptModel;
-                break;
-            } catch (error) {
-                lastError = error;
-            } finally {
-                clearTimeout(timeoutId);
-            }
-        }
-
-        if (!result && fallbackResult) {
-            result = fallbackResult;
-            usedModel = fallbackModel;
-        } else if (!result) {
-            throw lastError || new Error("全部模型均分析失败");
-        }
-
-        if (successfulAttemptIndex > 0 && result.meta?.parseStrategy === "extracted-json") {
-            setAnalyzeStatus(`自动降级成功：${usedModel} 返回了可用结果。`, "ready");
-        } else if (successfulAttemptIndex > 0) {
-            setAnalyzeStatus(`自动降级成功：已使用 ${usedModel} 完成分析。`, "ready");
-        } else if (result.meta?.parseStrategy === "extracted-json") {
+        if (result.meta?.parseStrategy === "extracted-json") {
             setAnalyzeStatus("分析已完成：模型返回了额外文字，系统已自动提取有效结果。");
         } else if (result.meta?.parseStrategy === "fallback-text") {
-            setAnalyzeStatus("全部模型均未返回标准 JSON，当前已降级展示最后一份原始结果。", "warning");
+            setAnalyzeStatus("模型未返回标准 JSON，当前已降级展示原始结果。", "warning");
         } else {
             setAnalyzeStatus("分析已完成。", "ready");
         }
 
-        modelUsedNote.textContent = `本次分析使用模型：${usedModel}`;
+        modelUsedNote.textContent = `本次分析使用模型：${response.model}${response.deduplicated ? "（复用已有结果）" : ""}`;
 
         if (currentMode === "professional") {
             renderResultProfessional(result);
@@ -1284,18 +1147,29 @@ ISO：${extractedExif.iso || "未知"}
         }
 
     } catch (error) {
-        if (error.name === 'AbortError') {
+        if (error.code === "UPLOAD_TIMEOUT" || error.code === "ANALYSIS_TIMEOUT") {
             showErrorCard(createErrorState("timeout"));
-            setAnalyzeStatus("分析超时了，建议换更稳定的模型或更小的图片重试。", "error");
+            setAnalyzeStatus(error.code === "UPLOAD_TIMEOUT"
+                ? "图片上传超时，请切换到更稳定的网络。"
+                : "AI 分析超时，请稍后重试。", "error");
+        } else if (error.status === 413 || error.code === "PAYLOAD_TOO_LARGE") {
+            showErrorCard(createErrorState("payload", error.message));
+            setAnalyzeStatus("图片超过服务端上传限制。", "error");
+        } else if (error.status === 429 || error.code === "RATE_LIMITED") {
+            showErrorCard(createErrorState("rateLimit", error.message));
+            setAnalyzeStatus("当前使用次数已达到限制，请稍后重试。", "error");
+        } else if (error.code === "CAPTCHA_REQUIRED" || error.code === "CAPTCHA_FAILED") {
+            showErrorCard(createErrorState("captcha", error.message));
+            setAnalyzeStatus("安全验证未通过，请重新验证。", "error");
         } else if (error.message.includes('JSON') || error.message.includes('格式异常')) {
             showErrorCard(createErrorState("format"));
-            setAnalyzeStatus("全部模型都没有稳定返回结构化结果，请稍后重试。", "error");
-        } else if (error.message.includes('API 错误') || error.message.includes('HTTP')) {
+            setAnalyzeStatus("模型没有稳定返回结构化结果，请稍后重试。", "error");
+        } else if (error.status >= 500 || error.code === "UPSTREAM_ERROR") {
             showErrorCard(createErrorState("api", error.message));
-            setAnalyzeStatus("接口请求失败了，请检查 Key、额度或服务状态。", "error");
-        } else if (error.message.includes('fetch') || error.message.includes('网络') || error.message.includes('Failed')) {
+            setAnalyzeStatus("AI 服务暂时不可用，请稍后重试。", "error");
+        } else if (error.code === "NETWORK_ERROR") {
             showErrorCard(createErrorState("network"));
-            setAnalyzeStatus("网络连接失败，请确认当前网络可以访问对应 API。", "error");
+            setAnalyzeStatus("网络连接失败，请确认当前网络可以访问本站。", "error");
         } else {
             showErrorCard(createErrorState("generic", `分析失败：${error.message}`));
             setAnalyzeStatus("这次分析没有成功完成，请稍后重试。", "error");
@@ -1313,9 +1187,9 @@ ISO：${extractedExif.iso || "未知"}
 
 function resetAnalysisState() {
     clearInterval(loadingStageInterval);
-    clearInterval(loadingProgressInterval);
+    clearInterval(analysisProgressInterval);
     loadingStageInterval = null;
-    loadingProgressInterval = null;
+    analysisProgressInterval = null;
 
     const scoreGrid = document.getElementById("scoreGrid");
     const analysisContainer = document.getElementById("analysisContainer");
@@ -1345,19 +1219,6 @@ function resetAnalysisState() {
     document.getElementById("tipsCard").classList.add("hidden");
     document.getElementById("praiseCard").classList.add("hidden");
     outputPlaceholder.classList.remove("hidden");
-}
-
-// =========================================
-// File -> Base64
-// =========================================
-
-function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-    });
 }
 
 // =========================================

@@ -424,6 +424,19 @@ button,
     margin-top: 8px;
 }
 
+.privacy-note {
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.privacy-note {
+    max-width: 720px;
+    margin: 28px auto 8px;
+    padding: 0 20px;
+    text-align: center;
+}
+
 .input-with-actions {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
