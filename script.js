@@ -8,7 +8,6 @@ const uploadPlaceholder = document.getElementById("uploadPlaceholder");
 const uploadLoading = document.getElementById("uploadLoading");
 const analyzeBtn = document.getElementById("analyzeBtn");
 const analyzeBtnText = document.getElementById("analyzeBtnText");
-const analyzeStatus = document.getElementById("analyzeStatus");
 const dropZone = document.getElementById("dropZone");
 
 const loadingSection = document.getElementById("loadingSection");
@@ -23,6 +22,7 @@ const errorCardTitle = document.getElementById("errorCardTitle");
 const errorCardDesc = document.getElementById("errorCardDesc");
 const errorCardTips = document.getElementById("errorCardTips");
 const retryAnalyzeBtn = document.getElementById("retryAnalyzeBtn");
+const cancelAnalysisBtn = document.getElementById("cancelAnalysisBtn");
 const modelUsedNote = document.getElementById("modelUsedNote");
 
 let selectedFile = null;
@@ -32,6 +32,9 @@ let analysisProgressInterval = null;
 let extractedExif = null;
 let isAnalyzing = false;
 let activeRequestId = "";
+let fileSelectionToken = 0;
+let activeAnalysisXhr = null;
+let feedbackAction = "retryAnalysis";
 
 // =========================================
 // 图片上传与代理响应由浏览器统一等待，服务端单独控制 Moonshot 超时。
@@ -53,31 +56,18 @@ function setHidden(element, hidden) {
     element.classList.toggle("hidden", hidden);
 }
 
-function setAnalyzeStatus(message, tone = "default") {
-    if (!analyzeStatus) return;
-    analyzeStatus.textContent = message;
-    analyzeStatus.classList.remove("is-ready", "is-warning", "is-error");
-    if (tone === "ready") analyzeStatus.classList.add("is-ready");
-    if (tone === "warning") analyzeStatus.classList.add("is-warning");
-    if (tone === "error") analyzeStatus.classList.add("is-error");
-}
-
 function updateAnalyzeButtonState() {
     const hasImage = Boolean(selectedFile);
 
     analyzeBtn.disabled = isAnalyzing || !hasImage;
-
-    if (isAnalyzing) {
-        setAnalyzeStatus("AI 正在分析中，请耐心等待结果返回。");
-        return;
-    }
-
-    if (!hasImage) {
-        setAnalyzeStatus("先上传一张照片，再开始分析。");
-        return;
-    }
-
-    setAnalyzeStatus("已就绪，图片将通过本站安全代理发送。", "ready");
+    uploadPlaceholder.disabled = isAnalyzing;
+    imageInput.disabled = isAnalyzing;
+    replaceBtn.disabled = isAnalyzing;
+    dropZone.classList.toggle("is-disabled", isAnalyzing);
+    dropZone.setAttribute("aria-busy", String(isAnalyzing));
+    document.querySelectorAll(".mode-card").forEach((card) => {
+        card.disabled = isAnalyzing;
+    });
 }
 
 function showErrorCard(state) {
@@ -99,10 +89,12 @@ function showErrorCard(state) {
     });
 
     retryAnalyzeBtn.textContent = state.actionLabel || "重新分析";
+    feedbackAction = state.action || "retryAnalysis";
 
     setHidden(outputPlaceholder, true);
-    setHidden(resultSection, true);
+    setHidden(resultSection, !state.preserveResult);
     setHidden(loadingSection, true);
+    errorCard.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function hideErrorCard() {
@@ -116,8 +108,25 @@ function createErrorState(kind, fallbackMessage) {
             eyebrow: "请先补齐信息",
             title: "还不能开始分析",
             description: fallbackMessage || "请先上传一张有效图片。",
-            tips: ["确认已经上传 JPG、PNG 或 WebP 图片。"],
+            tips: ["请选择页面列出的图片格式，并确认当前浏览器能够正常预览该文件。"],
             actionLabel: "返回上传"
+        },
+        processing: {
+            eyebrow: "请求仍在处理",
+            title: "正在处理，请稍候",
+            description: fallbackMessage || "相同的分析请求仍在后台处理中，暂时不需要重复提交。",
+            tips: ["请等待片刻后再次尝试，完成后系统会复用已有结果。"],
+            actionLabel: "稍后重试",
+            level: "warning"
+        },
+        export: {
+            eyebrow: "导出未完成",
+            title: "长图生成失败",
+            description: fallbackMessage || "浏览器没能成功生成或下载长图，请稍后重试。",
+            tips: ["请确认浏览器允许下载文件。", "照片或评价内容较长时，可关闭其他占用内存的页面后重试。"],
+            actionLabel: "知道了",
+            action: "dismiss",
+            preserveResult: true
         },
         timeout: {
             eyebrow: "请求超时",
@@ -477,6 +486,12 @@ window.setPhotoEvaluatorCaptcha = (value) => {
 
 retryAnalyzeBtn.addEventListener("click", () => {
     hideErrorCard();
+    if (feedbackAction === "dismiss") {
+        if (!resultSection.classList.contains("hidden")) {
+            resultSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+        return;
+    }
     if (!analyzeBtn.disabled) {
         analyzeBtn.click();
         return;
@@ -492,8 +507,13 @@ updateAnalyzeButtonState();
 
 document.querySelectorAll(".mode-card").forEach(card => {
     card.addEventListener("click", () => {
-        document.querySelectorAll(".mode-card").forEach(c => c.classList.remove("active"));
+        if (isAnalyzing) return;
+        document.querySelectorAll(".mode-card").forEach(c => {
+            c.classList.remove("active");
+            c.setAttribute("aria-checked", "false");
+        });
         card.classList.add("active");
+        card.setAttribute("aria-checked", "true");
         currentMode = card.dataset.mode;
         activeRequestId = "";
 
@@ -502,11 +522,9 @@ document.querySelectorAll(".mode-card").forEach(card => {
             : "开始友好点评";
 
         loadingText.textContent = currentMode === "professional"
-            ? "正在分析作品..."
-            : "正在发现照片的美好...";
-        loadingSub.textContent = currentMode === "professional"
-            ? "AI 正在从构图、光线、色彩等维度进行专业评估"
-            : "AI 正在为你寻找照片中的闪光点";
+            ? "专业分析进行中"
+            : "友好点评生成中";
+        loadingSub.textContent = "可能需要一些时间，请保持页面开启";
 
         updateAnalyzeButtonState();
     });
@@ -517,16 +535,14 @@ document.querySelectorAll(".mode-card").forEach(card => {
 // =========================================
 
 function handleFile(file) {
-    if (isAnalyzing) {
-        showErrorCard(createErrorState("warning", "AI 正在分析中，请等待当前任务完成后再上传新图片。"));
-        return;
-    }
-    if (!file || !file.type.startsWith("image/")) {
+    if (isAnalyzing) return;
+    if (!isSupportedImageFile(file)) {
         showErrorCard(createErrorState("warning", "请选择有效的图片文件后重试。"));
         return;
     }
 
-    selectedFile = file;
+    const selectionToken = ++fileSelectionToken;
+    selectedFile = null;
     activeRequestId = "";
     extractedExif = null;
     hideErrorCard();
@@ -538,6 +554,7 @@ function handleFile(file) {
 
     // 并行提取 EXIF
     extractExif(file).then(exif => {
+        if (selectionToken !== fileSelectionToken) return;
         extractedExif = formatExif(exif);
         renderExifCard(extractedExif);
 
@@ -550,10 +567,12 @@ function handleFile(file) {
         minQuality: IMAGE_MIN_QUALITY
     })
         .then(compressedFile => {
+            if (selectionToken !== fileSelectionToken) return;
             selectedFile = compressedFile;
             useOriginalFile(compressedFile);
         })
         .catch(err => {
+            if (selectionToken !== fileSelectionToken) return;
             console.error("图片压缩失败", err);
             selectedFile = null;
             uploadLoading.classList.add("hidden");
@@ -563,15 +582,34 @@ function handleFile(file) {
         });
 }
 
+function isSupportedImageFile(file) {
+    if (!file) return false;
+    const supportedMimeTypes = new Set([
+        "image/jpeg", "image/png", "image/apng", "image/webp", "image/gif",
+        "image/bmp", "image/x-ms-bmp", "image/avif", "image/heic", "image/heif",
+        "image/heic-sequence", "image/heif-sequence", "image/tiff"
+    ]);
+    const supportedExtensions = new Set([
+        "jpg", "jpeg", "jfif", "png", "apng", "webp", "gif", "bmp",
+        "avif", "heic", "heif", "tif", "tiff"
+    ]);
+    const extension = String(file.name || "").split(".").pop().toLowerCase();
+    return supportedMimeTypes.has(String(file.type || "").toLowerCase())
+        || supportedExtensions.has(extension);
+}
+
 function useOriginalFile(file) {
+    const selectionToken = fileSelectionToken;
     const reader = new FileReader();
     reader.onload = (event) => {
+        if (selectionToken !== fileSelectionToken) return;
         previewImage.src = event.target.result;
         uploadLoading.classList.add("hidden");
         previewContainer.classList.remove("hidden");
         updateAnalyzeButtonState();
     };
     reader.onerror = () => {
+        if (selectionToken !== fileSelectionToken) return;
         uploadLoading.classList.add("hidden");
         uploadPlaceholder.classList.remove("hidden");
         showErrorCard(createErrorState("warning", "图片读取失败，请换一张图片后重试。"));
@@ -710,21 +748,20 @@ function renderExifCard(exif) {
 
 replaceBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    if (isAnalyzing) {
-        showErrorCard(createErrorState("warning", "AI 正在分析中，请等待完成后再更换图片。"));
-        return;
-    }
+    if (isAnalyzing) return;
     imageInput.click();
 });
 
 imageInput.addEventListener("change", (e) => {
     const file = e.target.files[0];
     if (file) handleFile(file);
+    e.target.value = "";
 });
 
 // Drag & Drop
 dropZone.addEventListener("dragover", (e) => {
     e.preventDefault();
+    if (isAnalyzing) return;
     dropZone.classList.add("drag-over");
 });
 
@@ -735,19 +772,13 @@ dropZone.addEventListener("dragleave", () => {
 dropZone.addEventListener("drop", (e) => {
     e.preventDefault();
     dropZone.classList.remove("drag-over");
-    if (isAnalyzing) {
-        showErrorCard(createErrorState("warning", "AI 正在分析中，请等待完成后再上传新图片。"));
-        return;
-    }
+    if (isAnalyzing) return;
     const file = e.dataTransfer.files[0];
     if (file) handleFile(file);
 });
 
 uploadPlaceholder.addEventListener("click", () => {
-    if (isAnalyzing) {
-        showErrorCard(createErrorState("warning", "AI 正在分析中，请等待完成后再上传新图片。"));
-        return;
-    }
+    if (isAnalyzing) return;
     imageInput.click();
 });
 
@@ -1009,6 +1040,8 @@ function requestAnalysis({ file, mode, requestId }) {
         let uploadTimer = null;
         let responseTimer = null;
         let uploadFinished = false;
+        let settled = false;
+        let abortCode = "";
 
         formData.append("image", file, file.name);
         formData.append("mode", mode);
@@ -1018,7 +1051,23 @@ function requestAnalysis({ file, mode, requestId }) {
             formData.append("captchaVerifyParam", captchaVerifyParam);
         }
 
+        const cleanup = () => {
+            clearTimeout(uploadTimer);
+            clearTimeout(responseTimer);
+            if (activeAnalysisXhr === xhr) activeAnalysisXhr = null;
+        };
+
+        const succeed = (data) => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            resolve(data);
+        };
+
         const fail = (message, code, status = 0) => {
+            if (settled) return;
+            settled = true;
+            cleanup();
             const error = new Error(message);
             error.code = code;
             error.status = status;
@@ -1027,11 +1076,12 @@ function requestAnalysis({ file, mode, requestId }) {
 
         xhr.open("POST", API_ENDPOINT);
         xhr.responseType = "json";
+        activeAnalysisXhr = xhr;
 
         uploadTimer = setTimeout(() => {
             if (!uploadFinished) {
+                abortCode = "UPLOAD_TIMEOUT";
                 xhr.abort();
-                fail("图片上传超时", "UPLOAD_TIMEOUT");
             }
         }, UPLOAD_TIMEOUT_MS);
 
@@ -1049,41 +1099,49 @@ function requestAnalysis({ file, mode, requestId }) {
             uploadFinished = true;
             captchaVerifyParam = "";
             clearTimeout(uploadTimer);
-            loadingText.textContent = currentMode === "professional" ? "正在分析作品..." : "正在发现照片的美好...";
-            loadingSub.textContent = "图片上传完成，AI 正在分析";
+            loadingText.textContent = currentMode === "professional" ? "专业分析进行中" : "友好点评生成中";
+            loadingSub.textContent = "通常需要 10–60 秒，请保持页面开启";
             startAnalysisProgress();
             startStageRotation();
             responseTimer = setTimeout(() => {
+                abortCode = "ANALYSIS_TIMEOUT";
                 xhr.abort();
-                fail("AI 分析超时", "ANALYSIS_TIMEOUT");
             }, RESPONSE_TIMEOUT_MS);
         };
 
         xhr.onload = () => {
-            clearTimeout(uploadTimer);
-            clearTimeout(responseTimer);
             const data = xhr.response || {};
             if (xhr.status >= 200 && xhr.status < 300) {
-                resolve(data);
+                succeed(data);
                 return;
             }
             fail(data.message || `服务返回 HTTP ${xhr.status}`, data.code || "API_ERROR", xhr.status);
         };
 
         xhr.onerror = () => {
-            clearTimeout(uploadTimer);
-            clearTimeout(responseTimer);
             fail("网络连接失败", "NETWORK_ERROR");
         };
 
         xhr.onabort = () => {
-            clearTimeout(uploadTimer);
-            clearTimeout(responseTimer);
+            if (abortCode === "UPLOAD_TIMEOUT") {
+                fail("图片上传超时", "UPLOAD_TIMEOUT");
+            } else if (abortCode === "ANALYSIS_TIMEOUT") {
+                fail("AI 分析超时", "ANALYSIS_TIMEOUT");
+            } else {
+                fail("已取消本次分析", "USER_CANCELLED");
+            }
         };
 
         xhr.send(formData);
     });
 }
+
+cancelAnalysisBtn.addEventListener("click", () => {
+    if (!isAnalyzing || !activeAnalysisXhr) return;
+    cancelAnalysisBtn.disabled = true;
+    cancelAnalysisBtn.textContent = "正在取消...";
+    activeAnalysisXhr.abort();
+});
 
 analyzeBtn.addEventListener("click", async () => {
     if (!selectedFile) {
@@ -1092,6 +1150,7 @@ analyzeBtn.addEventListener("click", async () => {
     }
 
     isAnalyzing = true;
+    const requestedMode = currentMode;
 
     resetAnalysisState();
     hideErrorCard();
@@ -1099,6 +1158,8 @@ analyzeBtn.addEventListener("click", async () => {
 
     const originalBtnText = analyzeBtnText.textContent;
     analyzeBtnText.textContent = "分析中...";
+    cancelAnalysisBtn.disabled = false;
+    cancelAnalysisBtn.textContent = "取消分析";
 
     loadingSection.classList.remove("hidden");
     resultSection.classList.add("hidden");
@@ -1129,58 +1190,45 @@ analyzeBtn.addEventListener("click", async () => {
         if (!activeRequestId) activeRequestId = createRequestId();
         const response = await requestAnalysis({
             file: selectedFile,
-            mode: currentMode,
+            mode: requestedMode,
             requestId: activeRequestId
         });
         const result = parseAiResult(response.rawContent);
 
-        if (result.meta?.parseStrategy === "repaired-json") {
-            setAnalyzeStatus("分析已完成：模型返回的 JSON 引号格式有误，系统已自动修复。");
-        } else if (result.meta?.parseStrategy === "extracted-json") {
-            setAnalyzeStatus("分析已完成：模型返回了额外文字，系统已自动提取有效结果。");
-        } else if (result.meta?.parseStrategy === "fallback-text") {
-            setAnalyzeStatus("模型未返回标准 JSON，当前已降级展示原始结果。", "warning");
-        } else {
-            setAnalyzeStatus("分析已完成。", "ready");
-        }
-
         modelUsedNote.textContent = `本次分析使用模型：${response.model}${response.deduplicated ? "（复用已有结果）" : ""}`;
 
-        if (currentMode === "professional") {
+        if (requestedMode === "professional") {
             renderResultProfessional(result);
         } else {
             renderResultBeginner(result);
         }
 
     } catch (error) {
-        if (error.code === "UPLOAD_TIMEOUT" || error.code === "ANALYSIS_TIMEOUT") {
+        if (error.code === "USER_CANCELLED") {
+            setHidden(outputPlaceholder, false);
+            hideErrorCard();
+        } else if (error.status === 409 || error.code === "REQUEST_IN_PROGRESS") {
+            showErrorCard(createErrorState("processing", error.message));
+        } else if (error.code === "UPLOAD_TIMEOUT" || error.code === "ANALYSIS_TIMEOUT") {
             showErrorCard(createErrorState("timeout"));
-            setAnalyzeStatus(error.code === "UPLOAD_TIMEOUT"
-                ? "图片上传超时，请切换到更稳定的网络。"
-                : "AI 分析超时，请稍后重试。", "error");
         } else if (error.status === 413 || error.code === "PAYLOAD_TOO_LARGE") {
             showErrorCard(createErrorState("payload", error.message));
-            setAnalyzeStatus("图片超过服务端上传限制。", "error");
         } else if (error.status === 429 || error.code === "RATE_LIMITED") {
             showErrorCard(createErrorState("rateLimit", error.message));
-            setAnalyzeStatus("当前使用次数已达到限制，请稍后重试。", "error");
         } else if (error.code === "CAPTCHA_REQUIRED" || error.code === "CAPTCHA_FAILED") {
             showErrorCard(createErrorState("captcha", error.message));
-            setAnalyzeStatus("安全验证未通过，请重新验证。", "error");
         } else if (error.message.includes('JSON') || error.message.includes('格式异常')) {
             showErrorCard(createErrorState("format"));
-            setAnalyzeStatus("模型没有稳定返回结构化结果，请稍后重试。", "error");
         } else if (error.status >= 500 || error.code === "UPSTREAM_ERROR") {
             showErrorCard(createErrorState("api", error.message));
-            setAnalyzeStatus("AI 服务暂时不可用，请稍后重试。", "error");
         } else if (error.code === "NETWORK_ERROR") {
             showErrorCard(createErrorState("network"));
-            setAnalyzeStatus("网络连接失败，请确认当前网络可以访问本站。", "error");
         } else {
             showErrorCard(createErrorState("generic", `分析失败：${error.message}`));
-            setAnalyzeStatus("这次分析没有成功完成，请稍后重试。", "error");
         }
-        console.error("完整错误：", error);
+        if (error.code !== "USER_CANCELLED") {
+            console.error("完整错误：", error);
+        }
 
     } finally {
         stopLoadingAnimation();
@@ -1361,7 +1409,7 @@ function renderResultProfessional(result) {
     }
 
     setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        resultSection.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 200);
 }
 
@@ -1443,7 +1491,7 @@ function renderResultBeginner(result) {
     });
 
     setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        resultSection.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 200);
 }
 
@@ -1471,6 +1519,7 @@ const saveImageBtn = document.getElementById("saveImageBtn");
 
 saveImageBtn.addEventListener("click", async () => {
     const btnText = saveImageBtn.innerHTML;
+    let tempContainer = null;
     saveImageBtn.innerHTML = `<div class="spinner-small btn-inline-spinner"></div>生成中...`;
     saveImageBtn.disabled = true;
 
@@ -1487,7 +1536,7 @@ saveImageBtn.addEventListener("click", async () => {
         const exportEncourageBg = isDarkMode ? "linear-gradient(135deg, rgba(32, 24, 10, 0.92) 0%, rgba(40, 32, 16, 0.94) 100%)" : "linear-gradient(135deg, #FFF9E6 0%, #FFF5D6 100%)";
 
         // 1. 离屏容器
-        const tempContainer = document.createElement("div");
+        tempContainer = document.createElement("div");
         tempContainer.style.cssText = `
             position: absolute;
             left: -9999px;
@@ -1682,12 +1731,14 @@ saveImageBtn.addEventListener("click", async () => {
         link.click();
 
         // 8. 清理
-        document.body.removeChild(tempContainer);
+        tempContainer.remove();
+        tempContainer = null;
 
     } catch (err) {
         console.error("保存图片失败:", err);
-        alert("保存图片失败，请重试");
+        showErrorCard(createErrorState("export", err?.message ? `保存图片失败：${err.message}` : ""));
     } finally {
+        if (tempContainer?.isConnected) tempContainer.remove();
         saveImageBtn.innerHTML = btnText;
         saveImageBtn.disabled = false;
     }
