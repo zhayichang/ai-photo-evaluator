@@ -29,20 +29,23 @@
                 <!-- 步骤 1：上传照片 -->
                 <section class="card upload-card" id="dropZone">
                     <div class="step-label"><span class="step-num">1</span>上传照片</div>
-                    <input type="file" id="imageInput" accept="image/*" hidden>
+                    <input type="file" id="imageInput"
+                        accept=".jpg,.jpeg,.jfif,.png,.apng,.webp,.gif,.bmp,.avif,.heic,.heif,.tif,.tiff,image/jpeg,image/png,image/apng,image/webp,image/gif,image/bmp,image/avif,image/heic,image/heif,image/tiff"
+                        hidden>
 
-                    <div class="upload-placeholder" id="uploadPlaceholder">
-                        <div class="upload-icon">
+                    <button class="upload-placeholder" id="uploadPlaceholder" type="button"
+                        aria-controls="imageInput">
+                        <span class="upload-icon">
                             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                                 <polyline points="17 8 12 3 7 8" />
                                 <line x1="12" y1="3" x2="12" y2="15" />
                             </svg>
-                        </div>
-                        <p class="upload-title">点击或拖拽上传图片</p>
-                        <p class="upload-hint">支持 JPG、PNG、WebP</p>
-                    </div>
+                        </span>
+                        <span class="upload-title">点击或拖拽上传图片</span>
+                        <span class="upload-hint">支持 JPG / PNG / BMP / WebP 等</span>
+                    </button>
 
                     <div class="upload-loading hidden" id="uploadLoading">
                         <div class="spinner-small"></div>
@@ -67,33 +70,35 @@
                 <!-- 步骤 2：选择分析模式 -->
                 <section class="card mode-selector-card">
                     <div class="step-label"><span class="step-num">2</span>选择分析模式</div>
-                    <div class="mode-selector" id="modeSelector">
-                        <div class="mode-card active" data-mode="beginner">
-                            <div class="mode-check">
+                    <div class="mode-selector" id="modeSelector" role="radiogroup" aria-label="分析模式">
+                        <button class="mode-card active" data-mode="beginner" type="button" role="radio"
+                            aria-checked="true">
+                            <span class="mode-check">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                                     <polyline points="20 6 9 17 4 12" />
                                 </svg>
-                            </div>
-                            <div class="mode-icon">🌱</div>
-                            <div class="mode-info">
-                                <div class="mode-title">入门模式</div>
-                                <div class="mode-desc">轻松友好点评</div>
-                            </div>
-                        </div>
-                        <div class="mode-card" data-mode="professional">
-                            <div class="mode-check">
+                            </span>
+                            <span class="mode-icon">🌱</span>
+                            <span class="mode-info">
+                                <span class="mode-title">入门模式</span>
+                                <span class="mode-desc">轻松友好点评</span>
+                            </span>
+                        </button>
+                        <button class="mode-card" data-mode="professional" type="button" role="radio"
+                            aria-checked="false">
+                            <span class="mode-check">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                                     <polyline points="20 6 9 17 4 12" />
                                 </svg>
-                            </div>
-                            <div class="mode-icon">📷</div>
-                            <div class="mode-info">
-                                <div class="mode-title">专业模式</div>
-                                <div class="mode-desc">深度技术解析</div>
-                            </div>
-                        </div>
+                            </span>
+                            <span class="mode-icon">📷</span>
+                            <span class="mode-info">
+                                <span class="mode-title">专业模式</span>
+                                <span class="mode-desc">深度技术解析</span>
+                            </span>
+                        </button>
                     </div>
                 </section>
 
@@ -123,7 +128,7 @@
                             <span class="step-mark">1</span>
                             <div>
                                 <strong>上传照片</strong>
-                                <p>支持 JPG / PNG / WebP，发送前会自动压缩优化。</p>
+                                <p>支持 JPG / PNG / BMP / WebP 等，发送前统一转为 JPEG 并压缩。</p>
                             </div>
                         </div>
                         <div class="step-item">
@@ -164,6 +169,7 @@
                         <div class="loading-progress-fill" id="loadingProgress"></div>
                     </div>
                     <p class="loading-stage" id="loadingStage">正在认识这张照片...</p>
+                    <button class="btn-secondary cancel-analysis-btn" id="cancelAnalysisBtn" type="button">取消分析</button>
                 </section>
 
                 <!-- Results -->

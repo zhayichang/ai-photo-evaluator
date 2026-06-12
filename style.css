@@ -498,6 +498,7 @@ select option {
 }
 
 .mode-card {
+    width: 100%;
     position: relative;
     background: var(--card);
     border: 1px solid var(--border);
@@ -505,6 +506,8 @@ select option {
     padding: 24px;
     text-align: center;
     cursor: pointer;
+    color: inherit;
+    font: inherit;
     transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
     box-shadow: var(--shadow-sm);
 }
@@ -519,6 +522,20 @@ select option {
     border-color: var(--accent);
     background: rgba(0, 122, 255, 0.08);
     box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.12), var(--shadow-md);
+}
+
+.mode-card:focus-visible,
+.upload-placeholder:focus-visible,
+.replace-btn:focus-visible,
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible {
+    outline: 3px solid rgba(0, 122, 255, 0.35);
+    outline-offset: 3px;
+}
+
+.mode-card:disabled {
+    cursor: not-allowed;
+    opacity: 0.72;
 }
 
 .mode-check {
@@ -545,9 +562,15 @@ select option {
 }
 
 .mode-icon {
+    display: block;
     font-size: 32px;
     line-height: 1;
     margin-bottom: 10px;
+}
+
+.mode-info,
+.mode-title {
+    display: block;
 }
 
 .mode-title {
@@ -558,6 +581,7 @@ select option {
 }
 
 .mode-desc {
+    display: block;
     font-size: 13px;
     color: var(--text-secondary);
     font-weight: 500;
@@ -572,6 +596,11 @@ select option {
 }
 
 .upload-placeholder {
+    display: block;
+    width: 100%;
+    border: 0;
+    color: inherit;
+    font: inherit;
     min-height: 120px;
     padding: 12px 28px 40px;
     text-align: center;
@@ -585,6 +614,25 @@ select option {
     border: 2px dashed rgba(0, 122, 255, 0.5);
 }
 
+.upload-card.is-disabled {
+    cursor: not-allowed;
+}
+
+.upload-placeholder:disabled,
+.replace-btn:disabled {
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.upload-placeholder:disabled {
+    opacity: 0.72;
+}
+
+.replace-btn:disabled {
+    opacity: 0.55;
+    transform: none;
+}
+
 .upload-icon {
     color: var(--accent);
     margin-bottom: 12px;
@@ -595,6 +643,7 @@ select option {
 }
 
 .upload-title {
+    display: block;
     font-size: 17px;
     font-weight: 600;
     color: var(--text);
@@ -602,8 +651,16 @@ select option {
 }
 
 .upload-hint {
+    display: block;
     font-size: 13px;
     color: var(--text-secondary);
+}
+
+.upload-hint-secondary {
+    max-width: 340px;
+    margin: 6px auto 0;
+    font-size: 12px;
+    line-height: 1.5;
 }
 
 /* Upload Loading */
@@ -840,6 +897,16 @@ select option {
     color: var(--text-secondary);
     min-height: 24px;
     transition: opacity 0.3s ease;
+}
+
+.cancel-analysis-btn {
+    margin-top: 18px;
+    padding: 12px 18px;
+}
+
+.cancel-analysis-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 .feedback-card {
@@ -1496,6 +1563,17 @@ select option {
 @keyframes spin {
     to {
         transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
     }
 }
 
