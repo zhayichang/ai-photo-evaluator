@@ -1100,7 +1100,7 @@ function requestAnalysis({ file, mode, requestId }) {
             captchaVerifyParam = "";
             clearTimeout(uploadTimer);
             loadingText.textContent = currentMode === "professional" ? "专业分析进行中" : "友好点评生成中";
-            loadingSub.textContent = "通常需要 10–60 秒，请保持页面开启";
+            loadingSub.textContent = "可能需要一些时间，请保持页面开启";
             startAnalysisProgress();
             startStageRotation();
             responseTimer = setTimeout(() => {
