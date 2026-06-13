@@ -1676,12 +1676,37 @@ saveImageBtn.addEventListener("click", async () => {
             });
         }
 
+        const exportMeta = document.createElement("div");
+        exportMeta.style.cssText = `
+            margin: -4px 0 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            font-size: 12px;
+            color: ${exportTextSecondary};
+        `;
+
         if (modelUsedNote.textContent) {
             const modelNoteClone = modelUsedNote.cloneNode(true);
             modelNoteClone.removeAttribute("id");
-            modelNoteClone.style.cssText = `margin: -4px 0 0; text-align: right; font-size: 12px; color: ${exportTextSecondary};`;
-            contentWrapper.appendChild(modelNoteClone);
+            modelNoteClone.style.cssText = `margin: 0; color: ${exportTextSecondary};`;
+            exportMeta.appendChild(modelNoteClone);
         }
+
+        const timestamp = document.createElement("span");
+        timestamp.textContent = `生成时间：${new Date().toLocaleString("zh-CN", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false
+        }).replace(/\//g, "-")}`;
+        timestamp.style.cssText = `margin-left: auto; white-space: nowrap; color: ${exportTextSecondary};`;
+        exportMeta.appendChild(timestamp);
+        contentWrapper.appendChild(exportMeta);
 
         tempContainer.appendChild(contentWrapper);
 
