@@ -27,7 +27,7 @@ zip -r server-deploy.zip server package.json package-lock.json node_modules \
 运行环境：Node.js 20 自定义运行时
 启动命令：npm start
 监听端口：9000
-执行超时：240 秒
+执行超时：360 秒
 ```
 
 上传后可访问 `/health`，返回 `{"ok":true}` 表示部署成功。

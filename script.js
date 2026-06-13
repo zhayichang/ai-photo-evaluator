@@ -24,6 +24,10 @@ const errorCardTips = document.getElementById("errorCardTips");
 const retryAnalyzeBtn = document.getElementById("retryAnalyzeBtn");
 const cancelAnalysisBtn = document.getElementById("cancelAnalysisBtn");
 const modelUsedNote = document.getElementById("modelUsedNote");
+const fallbackNotice = document.getElementById("fallbackNotice");
+const retryFallbackBtn = document.getElementById("retryFallbackBtn");
+const saveCardTitle = document.getElementById("saveCardTitle");
+const saveCardDesc = document.getElementById("saveCardDesc");
 
 let selectedFile = null;
 let currentMode = "beginner";
@@ -41,7 +45,7 @@ let feedbackAction = "retryAnalysis";
 // =========================================
 const API_ENDPOINT = window.APP_CONFIG?.apiEndpoint || "/api/analyze";
 const UPLOAD_TIMEOUT_MS = 45000;
-const RESPONSE_TIMEOUT_MS = 210000;
+const RESPONSE_TIMEOUT_MS = 330000;
 const IMAGE_MAX_DIMENSION = 1920;
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const IMAGE_INITIAL_QUALITY = 0.88;
@@ -160,7 +164,7 @@ function createErrorState(kind, fallbackMessage) {
             eyebrow: "请求较多",
             title: "当前使用次数已达到限制",
             description: fallbackMessage || "请稍后再试，避免短时间重复提交。",
-            tips: ["默认每个网络地址每小时 3 次、每天 10 次。"],
+            tips: ["默认每个网络地址每小时 10 次、每天 50 次。"],
             actionLabel: "稍后重试"
         },
         captcha: {
@@ -497,6 +501,10 @@ retryAnalyzeBtn.addEventListener("click", () => {
         return;
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+retryFallbackBtn.addEventListener("click", () => {
+    if (!analyzeBtn.disabled) analyzeBtn.click();
 });
 
 updateAnalyzeButtonState();
@@ -1265,6 +1273,9 @@ function resetAnalysisState() {
     if (overallSummary) overallSummary.textContent = "";
     if (encouragementText) encouragementText.textContent = "";
     if (modelUsedNote) modelUsedNote.textContent = "";
+    setHidden(fallbackNotice, true);
+    saveCardTitle.textContent = "评价已生成";
+    saveCardDesc.textContent = "可以将结果保存为图片分享";
 
     document.getElementById("summaryCard").classList.add("hidden");
     document.getElementById("scoreGrid").classList.add("hidden");
@@ -1273,6 +1284,15 @@ function resetAnalysisState() {
     document.getElementById("tipsCard").classList.add("hidden");
     document.getElementById("praiseCard").classList.add("hidden");
     outputPlaceholder.classList.remove("hidden");
+}
+
+function updateFallbackNotice(result) {
+    const isFallback = result.meta?.parseStrategy === "fallback-text";
+    setHidden(fallbackNotice, !isFallback);
+    saveCardTitle.textContent = isFallback ? "已生成简化结果" : "评价已生成";
+    saveCardDesc.textContent = isFallback
+        ? "部分内容可能缺失，保存或分享前请留意上方提示"
+        : "可以将结果保存为图片分享";
 }
 
 // =========================================
@@ -1303,6 +1323,7 @@ function animateRing(score) {
 function renderResultProfessional(result) {
     resultSection.classList.remove("hidden");
     hideErrorCard();
+    updateFallbackNotice(result);
 
     // Summary card
     const summaryCard = document.getElementById("summaryCard");
@@ -1420,6 +1441,7 @@ function renderResultProfessional(result) {
 function renderResultBeginner(result) {
     resultSection.classList.remove("hidden");
     hideErrorCard();
+    updateFallbackNotice(result);
 
     // Hide all professional sections
     document.getElementById("summaryCard").classList.add("hidden");
@@ -1572,6 +1594,16 @@ saveImageBtn.addEventListener("click", async () => {
         // 4. 根据当前模式克隆对应卡片
         const contentWrapper = document.createElement("div");
         contentWrapper.style.cssText = "width: 100%; display: flex; flex-direction: column; gap: 20px;";
+
+        if (!fallbackNotice.classList.contains("hidden")) {
+            const fallbackClone = fallbackNotice.cloneNode(true);
+            fallbackClone.removeAttribute("id");
+            fallbackClone.querySelector("#retryFallbackBtn")?.remove();
+            fallbackClone.classList.remove("hidden");
+            fallbackClone.style.animation = "none";
+            fallbackClone.style.opacity = "1";
+            contentWrapper.appendChild(fallbackClone);
+        }
 
         if (currentMode === "professional") {
             const ids = ["summaryCard", "scoreGrid", "analysisContainer"];

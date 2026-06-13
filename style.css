@@ -988,6 +988,53 @@ select option {
     color: var(--warning);
 }
 
+.fallback-notice {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    background: linear-gradient(180deg, rgba(255, 252, 244, 0.98) 0%, rgba(255, 255, 255, 0.96) 100%);
+    border-color: rgba(255, 149, 0, 0.18);
+}
+
+.fallback-notice__icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    background: rgba(255, 149, 0, 0.12);
+    color: var(--warning);
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.fallback-notice__eyebrow {
+    display: inline-block;
+    margin-bottom: 6px;
+    color: var(--warning);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+}
+
+.fallback-notice__title {
+    margin-bottom: 8px;
+}
+
+.fallback-notice__desc {
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.fallback-notice__btn {
+    margin-top: 14px;
+    padding: 10px 14px;
+}
+
 /* Summary Card */
 .summary-card {
     display: flex;
@@ -1626,6 +1673,10 @@ select option {
         height: 42px;
         border-radius: 14px;
     }
+
+    .fallback-notice {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1824,6 +1875,11 @@ select option {
     }
 
     .feedback-card.is-warning {
+        background: linear-gradient(180deg, rgba(45, 32, 15, 0.95) 0%, rgba(24, 18, 28, 0.98) 100%);
+        border-color: rgba(255, 184, 77, 0.18);
+    }
+
+    .fallback-notice {
         background: linear-gradient(180deg, rgba(45, 32, 15, 0.95) 0%, rgba(24, 18, 28, 0.98) 100%);
         border-color: rgba(255, 184, 77, 0.18);
     }

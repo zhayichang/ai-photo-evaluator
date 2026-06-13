@@ -9,7 +9,7 @@ import { createStore, enforceRateLimits } from "./store.js";
 const MAX_REQUEST_BYTES = Number(process.env.MAX_REQUEST_BYTES || 8 * 1024 * 1024);
 const MAX_EXIF_BYTES = 4096;
 const RESULT_TTL_SECONDS = Number(process.env.RESULT_TTL_SECONDS || 600);
-const LOCK_TTL_SECONDS = Number(process.env.LOCK_TTL_SECONDS || 240);
+const LOCK_TTL_SECONDS = Number(process.env.LOCK_TTL_SECONDS || 360);
 const IP_HASH_SALT = process.env.IP_HASH_SALT || "local-development-only";
 if (process.env.NODE_ENV === "production" && !process.env.IP_HASH_SALT) {
     throw new Error("生产环境必须配置 IP_HASH_SALT");

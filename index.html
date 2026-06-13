@@ -174,10 +174,19 @@
 
                 <!-- Results -->
                 <section class="result-section hidden" id="resultSection">
+                    <div class="card fallback-notice hidden" id="fallbackNotice" role="alert">
+                        <div class="fallback-notice__icon" aria-hidden="true">!</div>
+                        <div class="fallback-notice__content">
+                            <span class="fallback-notice__eyebrow">简化结果</span>
+                            <h3 class="section-title fallback-notice__title">当前展示的分析可能不完整</h3>
+                            <p class="fallback-notice__desc">AI 返回的内容未符合预期格式，系统已尽量保留可读评价，但部分评分和分析维度可能缺失。</p>
+                            <button class="btn-secondary fallback-notice__btn" id="retryFallbackBtn" type="button">重新分析</button>
+                        </div>
+                    </div>
                     <div class="card save-card" id="saveCard">
                         <div class="save-card__body">
-                            <span class="save-card__title">评价已生成</span>
-                            <p class="save-card__desc">可以将结果保存为图片分享</p>
+                            <span class="save-card__title" id="saveCardTitle">评价已生成</span>
+                            <p class="save-card__desc" id="saveCardDesc">可以将结果保存为图片分享</p>
                         </div>
                         <button class="btn-primary save-card__btn" id="saveImageBtn" type="button">
                             <svg class="save-card__btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"

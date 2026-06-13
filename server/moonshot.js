@@ -47,13 +47,13 @@ export async function analyzeWithMoonshot({ image, systemPrompt, userPrompt, env
         env.MOONSHOT_PRIMARY_MODEL || "kimi-k2.6",
         env.MOONSHOT_FALLBACK_MODEL || "kimi-k2.5"
     ].filter((model, index, list) => model && list.indexOf(model) === index);
-    const deadline = Date.now() + Number(env.MOONSHOT_TOTAL_TIMEOUT_MS || 180000);
+    const deadline = Date.now() + Number(env.MOONSHOT_TOTAL_TIMEOUT_MS || 300000);
     let lastError;
 
     for (let index = 0; index < models.length; index++) {
         const remaining = deadline - Date.now();
         if (remaining < 5000) break;
-        const timeoutMs = index === 0 ? Math.min(120000, remaining) : remaining;
+        const timeoutMs = index === 0 ? Math.min(180000, remaining) : remaining;
         try {
             const rawContent = await callModel({
                 model: models[index],
