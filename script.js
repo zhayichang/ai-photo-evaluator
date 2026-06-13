@@ -1644,9 +1644,14 @@ saveImageBtn.addEventListener("click", async () => {
 
                     const ringSvg = clone.querySelector(".ring-svg");
                     if (ringSvg) {
-                        ringSvg.style.transform = "rotate(-90deg)";
-                        ringSvg.style.transformOrigin = "center center";
+                        // html2canvas can omit CSS transforms on SVG elements.
+                        // Bake the page's -90deg rotation into the circle geometry.
+                        ringSvg.style.transform = "none";
+                        ringSvg.querySelectorAll("circle").forEach(circle => {
+                            circle.setAttribute("transform", "rotate(-90 70 70)");
+                        });
                     }
+
                 }
 
                 clone.querySelectorAll(".progress-fill").forEach(bar => {
@@ -1770,6 +1775,7 @@ saveImageBtn.addEventListener("click", async () => {
                         .encouragement-card { background: ${exportEncourageBg} !important; border-color: ${isDarkMode ? 'rgba(255,193,7,0.24)' : 'rgba(255,193,7,0.2)'} !important; }
                         .exif-tag { background: ${isDarkMode ? 'rgba(16,24,40,0.95)' : '#F5F5F7'} !important; border-color: ${exportBorder} !important; }
                         .tag { background: ${isDarkMode ? 'rgba(16,24,40,0.95)' : '#F5F5F7'} !important; color: ${exportText} !important; border-color: ${exportBorder} !important; }
+                        .ring-label { color: ${exportTextSecondary} !important; }
                         .step-item { background: ${exportCardBg} !important; border-color: ${isDarkMode ? 'rgba(90,200,255,0.12)' : 'rgba(0,122,255,0.12)'} !important; }
                         .placeholder-card { background: ${exportCardBg} !important; }
                         .tip-item { background: ${exportCardBg} !important; }
