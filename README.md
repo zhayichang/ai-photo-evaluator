@@ -1,5 +1,10 @@
 # AI 摄影作品评价 — 使用说明
 
+在线体验：[AI 摄影作品评价](https://zhayichang.github.io/ai-photo-evaluator/)  
+作品介绍：[Vibe Coding 项目介绍](https://zhayichang.github.io/ai-photo-evaluator/portfolio.html)
+
+---
+
 ## 简介
 
 这是一款基于 AI 视觉大模型的摄影作品评价工具。上传照片后，AI 会从构图、光影、色彩、叙事等多个维度进行专业或友好的分析，并生成可保存分享的长图。

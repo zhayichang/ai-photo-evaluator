@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 摄影作品评价 - Portfolio</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📷</text></svg>">
+    <base target="_blank">
+    <style>
+        :root {
+            --bg: #F5F5F7;
+            --card: #FFFFFF;
+            --card-elevated: #FFFFFF;
+            --text: #1D1D1F;
+            --text-secondary: #86868B;
+            --accent: #007AFF;
+            --accent-hover: #0051D5;
+            --accent-light: rgba(0, 122, 255, 0.08);
+            --border: rgba(0, 0, 0, 0.08);
+            --border-strong: rgba(0, 0, 0, 0.15);
+            --success: #34C759;
+            --warning: #FF9500;
+            --danger: #FF3B30;
+            --purple: #AF52DE;
+            --pink: #FF2D55;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.04);
+            --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.08);
+            --radius-sm: 12px;
+            --radius-md: 16px;
+            --radius-lg: 20px;
+            --radius-xl: 28px;
+            --font-base: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --font-heading: "Inter", "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            min-height: 100vh;
+            padding: 40px 20px 20px;
+            background: radial-gradient(circle at top, #f7fbff 0%, #eef4fc 35%, #f5f5f7 100%);
+            color: var(--text);
+            font-family: var(--font-base);
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        h1,
+        h2,
+        h3,
+        .section-title,
+        .mode-title,
+        .metric-value {
+            font-family: var(--font-heading);
+        }
+
+        .portfolio-shell {
+            max-width: 1180px;
+            margin: 0 auto;
+            display: grid;
+            gap: 20px;
+        }
+
+        .card {
+            position: relative;
+            overflow: hidden;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            animation: slideUp 0.5s ease-out both;
+        }
+
+        .card:hover {
+            transform: translateY(-0.5px);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+        }
+
+        .title-glass {
+            padding: 28px 32px;
+            background: linear-gradient(135deg, rgba(0, 122, 255, 0.06) 0%, rgba(90, 200, 255, 0.04) 100%);
+            border-color: rgba(0, 122, 255, 0.12);
+            text-align: center;
+        }
+
+        .glow-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(40px);
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        .orb-1 {
+            width: 130px;
+            height: 130px;
+            top: -42px;
+            right: 12%;
+            background: var(--accent);
+            animation: drift 8s ease-in-out infinite;
+        }
+
+        .orb-2 {
+            width: 88px;
+            height: 88px;
+            bottom: -26px;
+            left: 16%;
+            background: #5AC8FA;
+            animation: drift 10s ease-in-out infinite reverse;
+        }
+
+        .title-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 12px;
+            margin-bottom: 13px;
+            background: var(--accent-light);
+            color: var(--accent);
+            border: 1px solid rgba(0, 122, 255, 0.15);
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        .title-glass h1 {
+            margin-bottom: 8px;
+            font-size: clamp(30px, 5vw, 56px);
+            font-weight: 700;
+            line-height: 1.08;
+            letter-spacing: -0.035em;
+        }
+
+        .subtitle {
+            max-width: 740px;
+            margin: 0 auto;
+            color: var(--text-secondary);
+            font-size: 17px;
+            line-height: 1.8;
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 22px;
+        }
+
+        .btn-primary,
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 46px;
+            padding: 12px 18px;
+            border-radius: 16px;
+            font-size: 15px;
+            font-weight: 600;
+            transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease, border-color 0.25s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #007AFF, #0A84FF);
+            color: #FFFFFF;
+            box-shadow: 0 10px 24px rgba(0, 122, 255, 0.18);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            background: linear-gradient(135deg, #0051D5, #3EA9FF);
+            box-shadow: 0 14px 28px rgba(0, 122, 255, 0.22);
+        }
+
+        .btn-secondary {
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.78);
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-1px);
+            border-color: var(--border-strong);
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        .intro-card,
+        .preview-card,
+        .section-card {
+            padding: 24px;
+        }
+
+        .section-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+        }
+
+        .step-num {
+            display: inline-flex;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 8px;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .section-title {
+            margin-bottom: 12px;
+            font-size: 24px;
+            font-weight: 650;
+            letter-spacing: -0.015em;
+            line-height: 1.22;
+        }
+
+        .lead {
+            color: var(--text-secondary);
+            font-size: 16px;
+            line-height: 1.8;
+        }
+
+        .pain-list {
+            display: grid;
+            gap: 12px;
+            margin-top: 22px;
+        }
+
+        .pain-item {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 12px;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(0, 122, 255, 0.12);
+            border-radius: 18px;
+        }
+
+        .pain-icon {
+            width: 32px;
+            height: 32px;
+            display: grid;
+            place-items: center;
+            border-radius: 12px;
+            background: var(--accent-light);
+            color: var(--accent);
+            font-weight: 800;
+        }
+
+        .pain-item strong {
+            display: block;
+            margin-bottom: 3px;
+            font-size: 15px;
+        }
+
+        .pain-item p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .browser-mock {
+            display: grid;
+            gap: 16px;
+            min-height: 100%;
+            padding: 18px;
+            background: linear-gradient(180deg, rgba(248, 249, 250, 0.98) 0%, rgba(255, 255, 255, 0.96) 100%);
+            border: 1px solid rgba(60, 60, 67, 0.12);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .mock-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .mock-window {
+            display: inline-flex;
+            gap: 6px;
+        }
+
+        .mock-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #FF5F57;
+        }
+
+        .mock-dot:nth-child(2) {
+            background: #FFBD2E;
+        }
+
+        .mock-dot:nth-child(3) {
+            background: #28C840;
+        }
+
+        .mock-title span:last-child {
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .mock-workspace {
+            display: grid;
+            grid-template-columns: 0.9fr 1.1fr;
+            gap: 14px;
+        }
+
+        .showcase-top {
+            display: grid;
+            grid-template-columns: 0.85fr 1.15fr;
+            gap: 14px;
+            align-items: stretch;
+        }
+
+        .upload-mini,
+        .result-mini,
+        .showcase-card {
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: var(--card);
+        }
+
+        .upload-zone {
+            display: grid;
+            min-height: 150px;
+            place-items: center;
+            border-radius: 16px;
+            background: var(--accent-light);
+            color: var(--accent);
+            text-align: center;
+        }
+
+        .upload-zone strong {
+            display: block;
+            margin-top: 10px;
+            color: var(--text);
+            font-size: 15px;
+        }
+
+        .sample-photo {
+            overflow: hidden;
+            border-radius: 16px;
+            background: var(--bg);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .sample-photo img {
+            display: block;
+            width: 100%;
+            aspect-ratio: 3 / 2;
+            object-fit: cover;
+        }
+
+        .sample-meta {
+            padding: 12px 2px 0;
+        }
+
+        .sample-meta strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 15px;
+            color: var(--text);
+        }
+
+        .sample-meta span {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .save-mini {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 14px;
+            background: linear-gradient(135deg, rgba(0, 122, 255, 0.06) 0%, rgba(90, 200, 255, 0.04) 100%);
+            border: 1px solid rgba(0, 122, 255, 0.12);
+            border-radius: 16px;
+        }
+
+        .save-mini strong {
+            display: block;
+            margin-bottom: 2px;
+            font-size: 13px;
+        }
+
+        .save-mini span {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .save-mini-badge {
+            flex: 0 0 auto;
+            padding: 8px 12px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #007AFF, #0A84FF);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .mode-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .mode-pill {
+            padding: 12px 10px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            color: var(--text-secondary);
+            text-align: center;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .mode-pill.active {
+            background: rgba(0, 122, 255, 0.08);
+            border-color: var(--accent);
+            color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .photo-type-badge {
+            display: inline-flex;
+            width: fit-content;
+            padding: 4px 10px;
+            background: var(--accent-light);
+            color: var(--accent);
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+        }
+
+        .score-ring {
+            position: relative;
+            width: 82px;
+            height: 82px;
+            flex: 0 0 auto;
+        }
+
+        .score-ring svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .ring-track {
+            fill: none;
+            stroke: var(--bg);
+            stroke-width: 9;
+        }
+
+        .ring-progress {
+            fill: none;
+            stroke: var(--accent);
+            stroke-width: 9;
+            stroke-linecap: round;
+            stroke-dasharray: 190;
+            stroke-dashoffset: 36;
+        }
+
+        .ring-text {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            color: var(--text);
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        .score-bars {
+            display: grid;
+            gap: 10px;
+        }
+
+        .showcase-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 12px 0 14px;
+        }
+
+        .showcase-tag {
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            background: var(--bg);
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .score-grid-mini {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .score-item-mini {
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: var(--card);
+        }
+
+        .score-item-mini div {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .score-item-mini span {
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .score-item-mini strong {
+            color: var(--text);
+            font-size: 16px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .bar-row {
+            display: grid;
+            grid-template-columns: 48px 1fr 26px;
+            gap: 8px;
+            align-items: center;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .bar-track {
+            height: 6px;
+            overflow: hidden;
+            border-radius: 100px;
+            background: var(--bg);
+        }
+
+        .bar-fill {
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--accent), #5AC8FA);
+        }
+
+        .mini-feedback {
+            display: grid;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .mini-feedback p {
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: var(--bg);
+            color: var(--text-secondary);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .analysis-preview-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .analysis-preview {
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--accent);
+            border-radius: 18px;
+            background: var(--card);
+        }
+
+        .analysis-preview.lighting {
+            border-left-color: var(--warning);
+        }
+
+        .analysis-preview.color {
+            border-left-color: var(--pink);
+        }
+
+        .analysis-preview h4 {
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+
+        .analysis-preview p {
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            line-height: 1.65;
+        }
+
+        .analysis-preview ul {
+            display: grid;
+            gap: 7px;
+            list-style: none;
+        }
+
+        .analysis-preview li {
+            position: relative;
+            padding-left: 16px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            line-height: 1.55;
+        }
+
+        .analysis-preview li::before {
+            content: "";
+            position: absolute;
+            top: 8px;
+            left: 0;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        .analysis-preview.lighting li::before {
+            background: var(--warning);
+        }
+
+        .analysis-preview.color li::before {
+            background: var(--pink);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .metric-card {
+            padding: 20px;
+            text-align: center;
+        }
+
+        .metric-value {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--accent);
+            font-size: 28px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .metric-label {
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .flow-list {
+            display: grid;
+            gap: 14px;
+            margin-top: 18px;
+        }
+
+        .flow-item {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 14px;
+            align-items: start;
+        }
+
+        .flow-index {
+            display: grid;
+            width: 34px;
+            height: 34px;
+            place-items: center;
+            border-radius: 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .flow-item strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 16px;
+        }
+
+        .flow-item p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .mode-showcase {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 18px;
+        }
+
+        .mode-card {
+            min-height: 100%;
+            padding: 20px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .mode-card.beginner {
+            background: linear-gradient(135deg, #FFF9E6 0%, #FFF5D6 100%);
+            border-color: rgba(255, 193, 7, 0.2);
+        }
+
+        .mode-card.pro {
+            background: linear-gradient(135deg, #F2F7FF 0%, #EDF4FF 100%);
+            border-color: rgba(0, 122, 255, 0.16);
+        }
+
+        .mode-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 18px;
+            font-weight: 650;
+        }
+
+        .mode-card p {
+            margin-bottom: 14px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .mode-card ul,
+        .detail-list {
+            display: grid;
+            gap: 10px;
+            list-style: none;
+        }
+
+        .mode-card li,
+        .detail-list li {
+            position: relative;
+            padding-left: 20px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .mode-card li::before,
+        .detail-list li::before {
+            content: "";
+            position: absolute;
+            top: 9px;
+            left: 0;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 18px;
+        }
+
+        .detail-card {
+            padding: 20px;
+        }
+
+        .detail-icon {
+            display: grid;
+            width: 46px;
+            height: 46px;
+            margin-bottom: 14px;
+            place-items: center;
+            border-radius: 16px;
+            background: var(--accent-light);
+            color: var(--accent);
+            font-size: 22px;
+        }
+
+        .detail-card h3 {
+            margin-bottom: 10px;
+            font-size: 17px;
+        }
+
+        .ai-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        .ai-grid .section-card {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tool-stack {
+            display: grid;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .tool-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 13px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+        }
+
+        .tool-item strong {
+            color: var(--accent);
+        }
+
+        .tool-item span {
+            color: var(--text-secondary);
+            font-size: 13px;
+            text-align: right;
+        }
+
+        .collab-timeline {
+            display: grid;
+            gap: 14px;
+            margin-top: 18px;
+        }
+
+        .timeline-item {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 14px;
+        }
+
+        .timeline-dot {
+            width: 12px;
+            height: 12px;
+            margin-top: 7px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 0 6px var(--accent-light);
+        }
+
+        .timeline-item strong {
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        .timeline-item p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .collab-flow {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: auto;
+            padding: 14px 16px;
+            border: 1px solid rgba(0, 122, 255, 0.12);
+            border-radius: 18px;
+            background: linear-gradient(135deg, rgba(0, 122, 255, 0.05) 0%, rgba(90, 200, 255, 0.035) 100%);
+        }
+
+        .flow-node {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.72);
+            text-align: center;
+        }
+
+        .flow-node strong {
+            display: block;
+            color: var(--text);
+            font-size: 15px;
+            font-weight: 650;
+        }
+
+        .flow-arrow {
+            flex: 0 0 auto;
+            color: var(--accent);
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .cta-card {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 24px;
+            align-items: center;
+            padding: 28px 32px;
+            background: linear-gradient(135deg, rgba(0, 122, 255, 0.08) 0%, rgba(90, 200, 255, 0.05) 100%);
+            border-color: rgba(0, 122, 255, 0.12);
+        }
+
+        .cta-card h2 {
+            margin-bottom: 8px;
+            font-size: 24px;
+            letter-spacing: -0.02em;
+        }
+
+        .cta-card p {
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .footer-quote {
+            max-width: 620px;
+            margin: 34px auto 0;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-style: italic;
+            line-height: 1.6;
+            text-align: center;
+            opacity: 0.82;
+        }
+
+        .app-footer {
+            padding: 12px 20px 4px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            letter-spacing: 0.01em;
+            text-align: center;
+            opacity: 0.8;
+        }
+
+        @keyframes drift {
+
+            0%,
+            100% {
+                transform: translate(0, 0);
+            }
+
+            33% {
+                transform: translate(15px, -10px);
+            }
+
+            66% {
+                transform: translate(-10px, 8px);
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 980px) {
+            body {
+                padding: 24px 16px 14px;
+            }
+
+            .hero-grid,
+            .two-column,
+            .ai-grid,
+            .cta-card {
+                grid-template-columns: 1fr;
+            }
+
+            .metrics-grid,
+            .detail-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .mock-workspace,
+            .showcase-top,
+            .analysis-preview-grid {
+                grid-template-columns: 1fr;
+            }
+
+        }
+
+        @media (max-width: 640px) {
+            .title-glass,
+            .intro-card,
+            .preview-card,
+            .section-card,
+            .cta-card {
+                padding: 22px;
+            }
+
+            .mode-showcase,
+            .metrics-grid,
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-actions {
+                flex-direction: column;
+            }
+
+            .btn-primary,
+            .btn-secondary {
+                width: 100%;
+            }
+
+            .tool-item {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .tool-item span {
+                text-align: left;
+            }
+
+            .collab-flow {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .flow-arrow {
+                transform: none;
+            }
+
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+            *,
+            *::before,
+            *::after {
+                scroll-behavior: auto !important;
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0b111d;
+                --card: rgba(12, 18, 34, 0.95);
+                --card-elevated: rgba(18, 26, 45, 0.96);
+                --text: #F3F5F9;
+                --text-secondary: #9CA5B4;
+                --accent: #5AC8FF;
+                --accent-hover: #3EA9FF;
+                --accent-light: rgba(90, 200, 255, 0.12);
+                --border: rgba(255, 255, 255, 0.08);
+                --border-strong: rgba(255, 255, 255, 0.14);
+                --shadow-sm: 0 10px 30px rgba(0, 0, 0, 0.22);
+                --shadow-md: 0 18px 44px rgba(0, 0, 0, 0.28);
+                --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.32);
+            }
+
+            html {
+                color-scheme: dark;
+            }
+
+            body {
+                background: radial-gradient(circle at top, #111628 0%, #0d1221 36%, #07101b 100%);
+            }
+
+            .card,
+            .title-glass,
+            .browser-mock,
+            .upload-mini,
+            .result-mini,
+            .mode-card,
+            .btn-secondary {
+                background: var(--card);
+                border-color: var(--border);
+                box-shadow: var(--shadow-sm);
+            }
+
+            .title-glass {
+                background: rgba(10, 16, 30, 0.96);
+            }
+
+            .pain-item,
+            .mini-feedback p,
+            .tool-item,
+            .upload-zone,
+            .flow-node {
+                background: rgba(18, 26, 44, 0.96);
+                border-color: rgba(90, 200, 255, 0.12);
+            }
+
+            .mode-card.beginner {
+                background: linear-gradient(135deg, rgba(32, 24, 10, 0.92) 0%, rgba(40, 32, 16, 0.94) 100%);
+                border-color: rgba(255, 193, 7, 0.24);
+            }
+
+            .mode-card.pro {
+                background: linear-gradient(135deg, rgba(18, 26, 44, 0.95) 0%, rgba(22, 32, 52, 0.96) 100%);
+                border-color: rgba(90, 200, 255, 0.16);
+            }
+
+            .cta-card {
+                background: linear-gradient(135deg, rgba(10, 132, 255, 0.12) 0%, rgba(90, 200, 255, 0.06) 100%);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="portfolio-shell">
+        <section class="card title-glass">
+            <div class="glow-orb orb-1"></div>
+            <div class="glow-orb orb-2"></div>
+            <div class="title-content">
+                <span class="badge">VIBE CODING 作品</span>
+                <h1>AI 摄影作品评价工具</h1>
+                <p class="subtitle">上传作品，选择分析模式，获得结构化评价、可执行建议，并导出适合分享的长图</p>
+                <div class="hero-actions">
+                    <a class="btn-primary" href="https://zhayichang.github.io/ai-photo-evaluator/">打开在线 Demo</a>
+                    <a class="btn-secondary" href="https://github.com/zhayichang/ai-photo-evaluator">查看项目代码</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="hero-grid">
+            <article class="card intro-card">
+                <div class="section-label"><span class="step-num">1</span>项目理念</div>
+                <h2 class="section-title">让摄影反馈更及时、具体，也更友好</h2>
+                <p class="lead">摄影爱好者常常缺少高质量反馈：点赞有人情属性，专业点评门槛较高，普通 AI 回答又容易忽略用户水平。这个工具希望把 AI 的视觉理解能力，设计成适合不同阶段用户的反馈体验。</p>
+                <div class="pain-list">
+                    <div class="pain-item">
+                        <span class="pain-icon">赞</span>
+                        <div>
+                            <strong>社交反馈不够具体</strong>
+                            <p>点赞能表达喜欢，却很难说明哪里好、哪里值得调整。</p>
+                        </div>
+                    </div>
+                    <div class="pain-item">
+                        <span class="pain-icon">评</span>
+                        <div>
+                            <strong>专业点评门槛较高</strong>
+                            <p>有经验的人不一定随时在线，过度专业的表达也可能打击新手信心。</p>
+                        </div>
+                    </div>
+                    <div class="pain-item">
+                        <span class="pain-icon">AI</span>
+                        <div>
+                            <strong>AI 能力需要被产品化</strong>
+                            <p>关键不是“能不能看图”，而是如何把反馈变成可理解、可行动的体验。</p>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <article class="card preview-card">
+                <div class="browser-mock" aria-label="工具界面示意">
+                    <div class="mock-title">
+                        <span class="mock-window"><span class="mock-dot"></span><span class="mock-dot"></span><span
+                                class="mock-dot"></span></span>
+                        <span>AI 摄影作品评价</span>
+                    </div>
+                    <div class="mock-workspace">
+                        <div class="upload-mini">
+                            <div class="upload-zone">
+                                <div>
+                                    <div style="font-size: 36px; line-height: 1;">⇧</div>
+                                    <strong>上传照片</strong>
+                                    <small>本地压缩后再分析</small>
+                                </div>
+                            </div>
+                            <div class="mode-row">
+                                <div class="mode-pill active">入门模式</div>
+                                <div class="mode-pill">专业模式</div>
+                            </div>
+                        </div>
+                        <div class="result-mini">
+                            <div class="result-header">
+                                <div>
+                                    <span class="photo-type-badge">STREET</span>
+                                    <h3 style="margin-top: 8px; font-size: 18px; font-weight: 650;">画面有明确情绪与观察角度</h3>
+                                </div>
+                                <div class="score-ring">
+                                    <svg viewBox="0 0 82 82">
+                                        <circle class="ring-track" cx="41" cy="41" r="30"></circle>
+                                        <circle class="ring-progress" cx="41" cy="41" r="30"></circle>
+                                    </svg>
+                                    <span class="ring-text">8.1</span>
+                                </div>
+                            </div>
+                            <div class="score-bars">
+                                <div class="bar-row"><span>构图</span><span class="bar-track"><span class="bar-fill"
+                                            style="width: 84%;"></span></span><strong>8.4</strong></div>
+                                <div class="bar-row"><span>光影</span><span class="bar-track"><span class="bar-fill"
+                                            style="width: 76%;"></span></span><strong>7.6</strong></div>
+                                <div class="bar-row"><span>叙事</span><span class="bar-track"><span class="bar-fill"
+                                            style="width: 82%;"></span></span><strong>8.2</strong></div>
+                            </div>
+                            <div class="mini-feedback">
+                                <p>优点：主体关系清楚，视线会自然落到画面中心。</p>
+                                <p>建议：下次可以稍微等待人物进入更干净的位置。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <section class="two-column">
+            <article class="card section-card">
+                <div class="section-label"><span class="step-num">2</span>使用方式</div>
+                <h2 class="section-title">从上传到分享，三步完成</h2>
+                <p class="lead">页面围绕一次完整的照片点评流程设计：先上传图片，再选择评价方式，最后查看结果并保存。</p>
+                <div class="flow-list">
+                    <div class="flow-item">
+                        <span class="flow-index">01</span>
+                        <div>
+                            <strong>上传照片</strong>
+                            <p>支持常见图片格式，发送前统一转为 JPEG 并自动压缩，降低等待时间。</p>
+                        </div>
+                    </div>
+                    <div class="flow-item">
+                        <span class="flow-index">02</span>
+                        <div>
+                            <strong>选择模式</strong>
+                            <p>新手选择入门模式获得鼓励和轻建议，进阶用户选择专业模式获得多维度分析。</p>
+                        </div>
+                    </div>
+                    <div class="flow-item">
+                        <span class="flow-index">03</span>
+                        <div>
+                            <strong>获得评价并保存</strong>
+                            <p>AI 输出结构化结果后，可一键保存为高清长图，方便发到社群或作品集里。</p>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <article class="card section-card">
+                <div class="section-label"><span class="step-num">3</span>结果设计</div>
+                <h2 class="section-title">同一张照片，不同用户需要不同语言</h2>
+                <p class="lead">让 AI 的评价方式匹配用户阶段，而不是把专业话术塞给所有人。</p>
+                <div class="mode-showcase">
+                    <div class="mode-card beginner">
+                        <div class="mode-title">入门模式</div>
+                        <p>更像一位友好的摄影同伴，先发现作品中成立的部分，再给少量容易执行的建议。</p>
+                        <ul>
+                            <li>总体寄语</li>
+                            <li>值得表扬的优点</li>
+                            <li>简单上手的小建议</li>
+                        </ul>
+                    </div>
+                    <div class="mode-card pro">
+                        <div class="mode-title">专业模式</div>
+                        <p>更像视觉导师，从构图、光影、色彩、叙事等维度给出评分和分析。</p>
+                        <ul>
+                            <li>综合评分与风格标签</li>
+                            <li>维度评分进度条</li>
+                            <li>优点、可优化点、修改建议</li>
+                        </ul>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <section class="card section-card">
+            <div class="section-label"><span class="step-num">4</span>体验细节</div>
+            <h2 class="section-title">围绕真实使用过程做的产品判断</h2>
+            <p class="lead">AI 返回时间、图片大小、输出格式都不完全可控，所以页面不仅要“能用”，还要在等待、失败和分享时提供确定感。</p>
+            <div class="detail-grid">
+                <article class="card detail-card">
+                    <div class="detail-icon">⏳</div>
+                    <h3>等待不空白</h3>
+                    <ul class="detail-list">
+                        <li>分析时禁用上传和模式选择，避免重复提交</li>
+                        <li>用阶段文案和感知型进度条降低焦虑</li>
+                        <li>完成后自动引导用户看到结果部分</li>
+                    </ul>
+                </article>
+                <article class="card detail-card">
+                    <div class="detail-icon">↻</div>
+                    <h3>失败可理解</h3>
+                    <ul class="detail-list">
+                        <li>针对上传超时、AI 超时、网络问题展示不同提示</li>
+                        <li>模型输出异常时尝试后备模型</li>
+                        <li>无法完整解析时尽量降级展示可读内容</li>
+                    </ul>
+                </article>
+                <article class="card detail-card">
+                    <div class="detail-icon">◐</div>
+                    <h3>审美一致</h3>
+                    <ul class="detail-list">
+                        <li>统一卡片留白、圆角、阴影和字重层级</li>
+                        <li>浅色与深色模式自动适配</li>
+                        <li>导出的长图也延续页面视觉语言</li>
+                    </ul>
+                </article>
+            </div>
+        </section>
+
+        <section class="ai-grid">
+            <article class="card section-card">
+                <div class="section-label"><span class="step-num">5</span>构建工具</div>
+                <h2 class="section-title">用自然语言推动从想法到产品</h2>
+                <p class="lead">项目主要通过自然语言和 AI 编程工具完成页面、交互、接口联调和部署相关工作。</p>
+                <div class="tool-stack">
+                    <div class="tool-item"><strong>Codex + VSCode</strong><span>需求拆解、页面实现、调试和迭代</span></div>
+                    <div class="tool-item"><strong>HTML / CSS / JavaScript</strong><span>响应式浏览器体验</span></div>
+                    <div class="tool-item"><strong>GitHub Pages</strong><span>前端静态部署</span></div>
+                    <div class="tool-item"><strong>阿里云函数计算</strong><span>安全代理、限流、超时与错误处理</span></div>
+                    <div class="tool-item"><strong>Moonshot Kimi</strong><span>运行时照片理解与评价能力</span></div>
+                </div>
+            </article>
+
+            <article class="card section-card">
+                <div class="section-label"><span class="step-num">6</span>AI 协作方式</div>
+                <h2 class="section-title">持续描述、体验、判断和修正</h2>
+                <div class="collab-timeline">
+                    <div class="timeline-item">
+                        <span class="timeline-dot"></span>
+                        <div>
+                            <strong>先定义用户和体验目标</strong>
+                            <p>先描述目标用户、使用场景和理想反馈，而不是只说“做一个页面”。</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <span class="timeline-dot"></span>
+                        <div>
+                            <strong>让 AI 快速搭建可操作原型</strong>
+                            <p>通过自然语言生成页面结构、交互逻辑和初版样式，然后在浏览器里真实体验。</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <span class="timeline-dot"></span>
+                        <div>
+                            <strong>围绕体验问题持续迭代</strong>
+                            <p>增加双模式、优化等待与错误提示，并调整提示词，不断优化产品体验。</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <span class="timeline-dot"></span>
+                        <div>
+                            <strong>让 AI 协助检查边界和部署</strong>
+                            <p>AI 帮助定位问题和梳理方案，人类来判断优先级、取舍和最终体验。</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="collab-flow" aria-label="AI 协作闭环流程">
+                    <div class="flow-node">
+                        <strong>描述</strong>
+                    </div>
+                    <div class="flow-arrow" aria-hidden="true">→</div>
+                    <div class="flow-node">
+                        <strong>生成</strong>
+                    </div>
+                    <div class="flow-arrow" aria-hidden="true">→</div>
+                    <div class="flow-node">
+                        <strong>体验</strong>
+                    </div>
+                    <div class="flow-arrow" aria-hidden="true">→</div>
+                    <div class="flow-node">
+                        <strong>修正</strong>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <section class="card cta-card">
+            <div>
+                <h2>在线体验这个作品</h2>
+                <p>可以上传一张照片，体验从选择分析模式、生成评价到保存长图的完整流程。</p>
+            </div>
+            <div class="hero-actions" style="justify-content: flex-end; margin-top: 0;">
+                <a class="btn-primary" href="https://zhayichang.github.io/ai-photo-evaluator/">体验 Demo</a>
+                <a class="btn-secondary" href="https://github.com/zhayichang/ai-photo-evaluator">查看代码</a>
+            </div>
+        </section>
+    </main>
+
+    <p class="footer-quote">AI 能识别图像中的模式，却无法拥有人类的凝视；真正的审美，永远属于按下快门的那个人。</p>
+    <footer class="app-footer">AI 摄影作品评价 · Vibe Coding Portfolio</footer>
+</body>
+
+</html>
