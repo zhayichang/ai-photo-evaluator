@@ -1,4 +1,5 @@
 import { parseJsonWithBareQuoteRepair } from "./json-repair.js";
+import { normalizeTechnical, calculateOverallScore } from "./technical-scoring.js";
 
 const imageInput = document.getElementById("imageInput");
 const replaceBtn = document.getElementById("replaceBtn");
@@ -44,6 +45,7 @@ let feedbackAction = "retryAnalysis";
 // 图片上传与代理响应由浏览器统一等待，服务端单独控制 Moonshot 超时。
 // =========================================
 const API_ENDPOINT = window.APP_CONFIG?.apiEndpoint || "/api/analyze";
+const REQUIRED_SCHEMA_VERSION = "technical-v1";
 const UPLOAD_TIMEOUT_MS = 45000;
 const RESPONSE_TIMEOUT_MS = 330000;
 const IMAGE_MAX_DIMENSION = 1920;
@@ -142,9 +144,25 @@ function createErrorState(kind, fallbackMessage) {
         format: {
             eyebrow: "返回格式异常",
             title: "模型没有按预期返回结构化结果",
-            description: "这通常不是你的操作问题，而是当前模型输出了额外文字或截断了 JSON。",
-            tips: ["系统已自动尝试全部后备模型。", "可以稍后重新分析，排除临时输出波动。"],
+            description: fallbackMessage || "模型返回的字段未通过检查。",
+            tips: ["请查看报错详情，确认是缺少技术字段还是扣分超出范围。"],
             actionLabel: "重新分析"
+        },
+        version: {
+            eyebrow: "前后端版本不一致",
+            title: "专业模式需要新版分析服务",
+            description: "当前分析接口尚未提供技术完成度结果。请更新并启动新版服务端后再分析。",
+            tips: ["重复点击不会更新服务端版本。"],
+            actionLabel: "知道了",
+            action: "dismiss"
+        },
+        localApi: {
+            eyebrow: "本地服务未启动",
+            title: "无法连接本地分析服务",
+            description: "本地页面现在只连接本机接口。请启动新版服务端；静态页面只能预览界面，不能生成真实分析结果。",
+            tips: [],
+            actionLabel: "知道了",
+            action: "dismiss"
         },
         api: {
             eyebrow: "接口调用失败",
@@ -792,7 +810,7 @@ uploadPlaceholder.addEventListener("click", () => {
 
 function startStageRotation() {
     const stages = currentMode === "professional"
-        ? ["正在识别照片类型...", "正在分析构图...", "正在评估光影...", "正在整理色彩...", "正在感受情绪与叙事...", "正在生成专业评价..."]
+        ? ["正在识别照片类型...", "正在检查技术完成度...", "正在分析构图...", "正在评估光影...", "正在整理色彩...", "正在感受情绪与叙事...", "正在生成专业评价..."]
         : ["正在认识这张照片...", "正在寻找闪光点...", "正在感受照片的情绪...", "正在整理小建议...", "正在为你写寄语..."];
 
     let i = 0;
@@ -926,6 +944,13 @@ function buildFallbackResultFromRawText(rawContent) {
         photo_type: "待确认",
         photography_style: ["降级展示"],
         overall_summary: shortSummary,
+        technical: {
+            level: "uncertain",
+            deduction: 0,
+            observation: "本次返回内容未能完成技术检查。",
+            impact: "",
+            suggestion: ""
+        },
         scores: {
             composition: 0,
             lighting: 0,
@@ -956,20 +981,24 @@ function buildFallbackResultFromRawText(rawContent) {
     };
 }
 
-function standardizeResult(result, meta = {}) {
+function standardizeResult(result, mode, meta = {}) {
     const raw = result && typeof result === "object" ? result : {};
+    const technical = mode === "professional" ? normalizeTechnical(raw.technical) : null;
+    const overallBase = normalizeScore(raw.scores?.overall);
     const standardized = {
         photo_type: typeof raw.photo_type === "string" && raw.photo_type.trim() ? raw.photo_type.trim() : "未识别类型",
         photography_style: normalizeStringArray(raw.photography_style, []),
         overall_summary: typeof raw.overall_summary === "string" && raw.overall_summary.trim()
             ? raw.overall_summary.trim()
             : "AI 已完成分析，但总结信息较少。",
+        technical,
         scores: {
             composition: normalizeScore(raw.scores?.composition),
             lighting: normalizeScore(raw.scores?.lighting),
             color: normalizeScore(raw.scores?.color),
             storytelling: normalizeScore(raw.scores?.storytelling),
-            overall: normalizeScore(raw.scores?.overall)
+            overallBase,
+            overall: technical ? calculateOverallScore(overallBase, technical.deduction) : overallBase
         },
         composition: normalizeSection(raw.composition),
         lighting: normalizeSection(raw.lighting),
@@ -991,7 +1020,7 @@ function standardizeResult(result, meta = {}) {
     return standardized;
 }
 
-function parseAiResult(rawContent) {
+function parseAiResult(rawContent, mode) {
     const directText = typeof rawContent === "string" ? rawContent.trim() : "";
     const candidates = [
         { strategy: "direct-json", text: directText }
@@ -1003,16 +1032,18 @@ function parseAiResult(rawContent) {
 
     for (const candidate of candidates) {
         if (!candidate.text) continue;
+        let parsed;
         try {
-            const parsed = parseJsonWithBareQuoteRepair(candidate.text);
-            const parseStrategy = parsed.repaired ? "repaired-json" : candidate.strategy;
-            return standardizeResult(parsed.value, { parseStrategy, rawText: directText });
+            parsed = parseJsonWithBareQuoteRepair(candidate.text);
         } catch (_) {
             // continue to next strategy
+            continue;
         }
+        const parseStrategy = parsed.repaired ? "repaired-json" : candidate.strategy;
+        return standardizeResult(parsed.value, mode, { parseStrategy, rawText: directText });
     }
 
-    return standardizeResult(buildFallbackResultFromRawText(directText), {
+    return standardizeResult(buildFallbackResultFromRawText(directText), mode, {
         parseStrategy: "fallback-text",
         rawText: directText
     });
@@ -1039,6 +1070,24 @@ function buildSafeExifPayload() {
             .filter((key) => extractedExif[key])
             .map((key) => [key, String(extractedExif[key]).slice(0, 160)])
     );
+}
+
+async function ensureProfessionalApiVersion() {
+    const healthUrl = new URL(API_ENDPOINT, window.location.href);
+    healthUrl.pathname = healthUrl.pathname.replace(/\/api\/analyze$/, "/health");
+    let response;
+    try {
+        response = await fetch(healthUrl);
+    } catch (cause) {
+        throw Object.assign(new Error(`无法连接分析接口：${cause.message}`, { cause }), { code: "API_UNREACHABLE" });
+    }
+    if (!response.ok) {
+        throw Object.assign(new Error(`分析接口健康检查返回 HTTP ${response.status}`), { code: "API_UNREACHABLE" });
+    }
+    const health = await response.json();
+    if (health.schemaVersion !== REQUIRED_SCHEMA_VERSION) {
+        throw Object.assign(new Error("分析服务版本缺少技术完成度"), { code: "SCHEMA_VERSION_MISMATCH" });
+    }
 }
 
 function requestAnalysis({ file, mode, requestId }) {
@@ -1181,6 +1230,7 @@ analyzeBtn.addEventListener("click", async () => {
     }
 
     // 隐藏所有条件区域
+    document.getElementById("technicalCard").classList.add("hidden");
     document.getElementById("scoreGrid").classList.add("hidden");
     document.getElementById("analysisContainer").classList.add("hidden");
     document.getElementById("encouragementCard").classList.add("hidden");
@@ -1195,13 +1245,17 @@ analyzeBtn.addEventListener("click", async () => {
     loadingSection.scrollIntoView({ behavior: "smooth", block: "center" });
 
     try {
+        if (requestedMode === "professional") await ensureProfessionalApiVersion();
         if (!activeRequestId) activeRequestId = createRequestId();
         const response = await requestAnalysis({
             file: selectedFile,
             mode: requestedMode,
             requestId: activeRequestId
         });
-        const result = parseAiResult(response.rawContent);
+        if (requestedMode === "professional" && response.schemaVersion !== REQUIRED_SCHEMA_VERSION) {
+            throw Object.assign(new Error("分析结果版本缺少技术完成度"), { code: "SCHEMA_VERSION_MISMATCH" });
+        }
+        const result = parseAiResult(response.rawContent, requestedMode);
 
         modelUsedNote.textContent = `本次分析使用模型：${response.model}${response.deduplicated ? "（复用已有结果）" : ""}`;
 
@@ -1225,8 +1279,13 @@ analyzeBtn.addEventListener("click", async () => {
             showErrorCard(createErrorState("rateLimit", error.message));
         } else if (error.code === "CAPTCHA_REQUIRED" || error.code === "CAPTCHA_FAILED") {
             showErrorCard(createErrorState("captcha", error.message));
+        } else if (error.code === "SCHEMA_VERSION_MISMATCH") {
+            showErrorCard(createErrorState("version"));
+        } else if (["API_UNREACHABLE", "NETWORK_ERROR"].includes(error.code)
+            && ["localhost", "127.0.0.1"].includes(window.location.hostname)) {
+            showErrorCard(createErrorState("localApi"));
         } else if (error.message.includes('JSON') || error.message.includes('格式异常')) {
-            showErrorCard(createErrorState("format"));
+            showErrorCard(createErrorState("format", error.message));
         } else if (error.status >= 500 || error.code === "UPSTREAM_ERROR") {
             showErrorCard(createErrorState("api", error.message));
         } else if (error.code === "NETWORK_ERROR") {
@@ -1261,6 +1320,7 @@ function resetAnalysisState() {
     const overallScore = document.getElementById("overallScore");
     const photoType = document.getElementById("photoType");
     const overallSummary = document.getElementById("overallSummary");
+    const scoreCalculation = document.getElementById("scoreCalculation");
     const encouragementText = document.getElementById("encouragementText");
 
     if (scoreGrid) scoreGrid.innerHTML = "";
@@ -1271,6 +1331,7 @@ function resetAnalysisState() {
     if (overallScore) overallScore.textContent = "0.0";
     if (photoType) photoType.textContent = "未识别类型";
     if (overallSummary) overallSummary.textContent = "";
+    if (scoreCalculation) scoreCalculation.textContent = "";
     if (encouragementText) encouragementText.textContent = "";
     if (modelUsedNote) modelUsedNote.textContent = "";
     setHidden(fallbackNotice, true);
@@ -1278,6 +1339,7 @@ function resetAnalysisState() {
     saveCardDesc.textContent = "可以将结果保存为图片分享";
 
     document.getElementById("summaryCard").classList.add("hidden");
+    document.getElementById("technicalCard").classList.add("hidden");
     document.getElementById("scoreGrid").classList.add("hidden");
     document.getElementById("analysisContainer").classList.add("hidden");
     document.getElementById("encouragementCard").classList.add("hidden");
@@ -1316,6 +1378,30 @@ function animateRing(score) {
     });
 }
 
+function renderTechnical(result) {
+    const technical = result.technical;
+    const labels = {
+        none: "未见表达障碍",
+        slight: "轻微影响",
+        moderate: "中等影响",
+        severe: "明显影响",
+        uncertain: "无法可靠判断"
+    };
+    document.getElementById("technicalStatus").textContent = labels[technical.level];
+    document.getElementById("technicalObservation").textContent = technical.observation;
+    const impact = document.getElementById("technicalImpact");
+    impact.textContent = technical.impact;
+    impact.classList.toggle("hidden", !technical.impact);
+    const suggestion = document.getElementById("technicalSuggestion");
+    suggestion.textContent = technical.suggestion ? `建议：${technical.suggestion}` : "";
+    suggestion.classList.toggle("hidden", !technical.suggestion);
+    const deduction = document.getElementById("technicalDeduction");
+    deduction.textContent = technical.deduction > 0
+        ? `综合分技术扣分：−${technical.deduction.toFixed(1)}`
+        : "综合分技术扣分：0";
+    document.getElementById("technicalCard").classList.remove("hidden");
+}
+
 // =========================================
 // Professional Render
 // =========================================
@@ -1341,8 +1427,10 @@ function renderResultProfessional(result) {
         styleTags.appendChild(tag);
     });
 
-    const overallScore = result.scores?.overall ?? 0;
+    const overallScore = result.scores.overall;
     document.getElementById("overallScore").textContent = overallScore.toFixed(1);
+    document.getElementById("scoreCalculation").textContent =
+        `模型综合判断 ${result.scores.overallBase.toFixed(1)} − 技术扣分 ${result.technical.deduction.toFixed(1)} = ${overallScore.toFixed(1)}`;
     animateRing(overallScore);
 
     // Hide beginner-only section
@@ -1351,6 +1439,7 @@ function renderResultProfessional(result) {
     // Show professional sections
     document.getElementById("scoreGrid").classList.remove("hidden");
     document.getElementById("analysisContainer").classList.remove("hidden");
+    renderTechnical(result);
 
     // Score Grid
     const scoreGrid = document.getElementById("scoreGrid");
@@ -1447,6 +1536,7 @@ function renderResultBeginner(result) {
     document.getElementById("summaryCard").classList.add("hidden");
     document.getElementById("scoreGrid").classList.add("hidden");
     document.getElementById("analysisContainer").classList.add("hidden");
+    document.getElementById("technicalCard").classList.add("hidden");
 
     // Show beginner sections
     document.getElementById("encouragementCard").classList.remove("hidden");
@@ -1606,7 +1696,7 @@ saveImageBtn.addEventListener("click", async () => {
         }
 
         if (currentMode === "professional") {
-            const ids = ["summaryCard", "scoreGrid", "analysisContainer"];
+            const ids = ["summaryCard", "technicalCard", "scoreGrid", "analysisContainer"];
             ids.forEach(id => {
                 const original = document.getElementById(id);
                 if (!original) return;

@@ -207,6 +207,7 @@
                                 <h2 id="overallSummary" class="summary-title">分析结果</h2>
                             </div>
                             <div class="style-tags" id="styleTags"></div>
+                            <p class="score-calculation" id="scoreCalculation"></p>
                         </div>
 
                         <div class="score-ring-wrapper">
@@ -221,6 +222,20 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                    <div class="card technical-card hidden" id="technicalCard">
+                        <div class="technical-header">
+                            <div>
+                                <span class="technical-eyebrow">基础检查</span>
+                                <h2>技术完成度</h2>
+                            </div>
+                            <span class="technical-status" id="technicalStatus"></span>
+                        </div>
+                        <p id="technicalObservation"></p>
+                        <p id="technicalImpact"></p>
+                        <p id="technicalSuggestion"></p>
+                        <p class="technical-deduction" id="technicalDeduction"></p>
+                        <p class="technical-note">依据压缩预览图判断；无法可靠确认的细节不扣分。</p>
                     </div>
 
                     <!-- Professional: Score Grid -->
@@ -257,7 +272,7 @@
     <footer class="app-footer">Designed by 猹猹🦡，Powered by Moonshot🌕 --v2026.06.10</footer>
 
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <script src="config.js"></script>
+    <script src="config.js?v=technical-v1"></script>
     <script type="module" src="script.js"></script>
 </body>
 

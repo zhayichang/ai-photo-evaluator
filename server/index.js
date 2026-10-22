@@ -140,7 +140,7 @@ async function handleAnalyze(req, res, headers) {
         .digest("hex");
     const form = await parseMultipart(req);
     const requestId = validateRequestId(form.get("requestId"));
-    const requestKey = crypto.createHash("sha256").update(`${ipHash}:${requestId}`).digest("hex");
+    const requestKey = crypto.createHash("sha256").update(`technical-v1:${ipHash}:${requestId}`).digest("hex");
     const resultKey = `result:${requestKey}`;
     const lockKey = `lock:${requestKey}`;
     const cached = await store.get(resultKey);
@@ -176,7 +176,7 @@ async function handleAnalyze(req, res, headers) {
         const exif = parseExif(String(form.get("exif") || ""));
         const prompts = buildPrompts(mode, exif);
         const result = await analyzeWithMoonshot({ image, ...prompts });
-        const response = { rawContent: result.rawContent, model: result.model };
+        const response = { rawContent: result.rawContent, model: result.model, schemaVersion: "technical-v1" };
         await store.set(resultKey, response, RESULT_TTL_SECONDS);
 
         console.info(JSON.stringify({
@@ -205,7 +205,7 @@ const server = http.createServer(async (req, res) => {
             return;
         }
         if (req.method === "GET" && req.url === "/health") {
-            sendJson(res, 200, { ok: true }, headers);
+            sendJson(res, 200, { ok: true, schemaVersion: "technical-v1" }, headers);
             return;
         }
         if (req.method !== "POST" || req.url !== "/api/analyze") {

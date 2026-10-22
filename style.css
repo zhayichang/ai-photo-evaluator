@@ -1081,6 +1081,62 @@ select option {
     margin-top: 12px;
 }
 
+.score-calculation {
+    margin-top: 12px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.technical-card {
+    border-left: 4px solid var(--accent);
+}
+
+.technical-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.technical-eyebrow {
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.technical-header h2 {
+    margin-top: 4px;
+    font-size: 18px;
+}
+
+.technical-status {
+    flex-shrink: 0;
+    padding: 5px 10px;
+    border-radius: 100px;
+    background: var(--accent-light);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.technical-card p {
+    margin-top: 8px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.technical-card .technical-deduction {
+    color: var(--text);
+    font-weight: 700;
+}
+
+.technical-card .technical-note {
+    font-size: 12px;
+}
+
 .tag {
     padding: 6px 12px;
     background: var(--bg);

@@ -10,3 +10,13 @@ test("prompts explain that the analyzed image is a compressed preview", () => {
         assert.match(systemPrompt, /压缩/);
     }
 });
+
+test("technical assessment and deductions belong only to professional mode", () => {
+    const professional = buildPrompts("professional", {}).systemPrompt;
+    const beginner = buildPrompts("beginner", {}).systemPrompt;
+    assert.match(professional, /technical\.deduction/);
+    assert.match(professional, /不要在其中预先扣除/);
+    assert.match(professional, /有意的模糊、暗调或颗粒感/);
+    assert.match(professional, /"technical"/);
+    assert.doesNotMatch(beginner, /technical|技术扣分|"technical"/);
+});
