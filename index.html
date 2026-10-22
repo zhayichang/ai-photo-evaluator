@@ -207,7 +207,6 @@
                                 <h2 id="overallSummary" class="summary-title">分析结果</h2>
                             </div>
                             <div class="style-tags" id="styleTags"></div>
-                            <p class="score-calculation" id="scoreCalculation"></p>
                         </div>
 
                         <div class="score-ring-wrapper">
@@ -223,23 +222,18 @@
                             </div>
                         </div>
                     </div>
-                    <div class="card technical-card hidden" id="technicalCard">
-                        <div class="technical-header">
-                            <div>
-                                <span class="technical-eyebrow">基础检查</span>
+                    <div class="assessment-layout hidden" id="assessmentLayout">
+                        <div class="card technical-card hidden" id="technicalCard">
+                            <div class="technical-header">
                                 <h2>技术完成度</h2>
                             </div>
-                            <span class="technical-status" id="technicalStatus"></span>
+                            <p class="technical-result" id="technicalStatus"></p>
+                            <p class="technical-deduction" id="technicalDeduction"></p>
                         </div>
-                        <p id="technicalObservation"></p>
-                        <p id="technicalImpact"></p>
-                        <p id="technicalSuggestion"></p>
-                        <p class="technical-deduction" id="technicalDeduction"></p>
-                        <p class="technical-note">依据压缩预览图判断；无法可靠确认的细节不扣分。</p>
-                    </div>
 
-                    <!-- Professional: Score Grid -->
-                    <div class="score-grid hidden" id="scoreGrid"></div>
+                        <!-- Professional: Score Grid -->
+                        <div class="score-grid hidden" id="scoreGrid"></div>
+                    </div>
 
                     <!-- Professional: Analysis Cards -->
                     <div class="analysis-container hidden" id="analysisContainer"></div>

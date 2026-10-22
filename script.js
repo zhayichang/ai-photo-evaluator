@@ -1230,6 +1230,7 @@ analyzeBtn.addEventListener("click", async () => {
     }
 
     // 隐藏所有条件区域
+    document.getElementById("assessmentLayout").classList.add("hidden");
     document.getElementById("technicalCard").classList.add("hidden");
     document.getElementById("scoreGrid").classList.add("hidden");
     document.getElementById("analysisContainer").classList.add("hidden");
@@ -1320,7 +1321,6 @@ function resetAnalysisState() {
     const overallScore = document.getElementById("overallScore");
     const photoType = document.getElementById("photoType");
     const overallSummary = document.getElementById("overallSummary");
-    const scoreCalculation = document.getElementById("scoreCalculation");
     const encouragementText = document.getElementById("encouragementText");
 
     if (scoreGrid) scoreGrid.innerHTML = "";
@@ -1331,7 +1331,6 @@ function resetAnalysisState() {
     if (overallScore) overallScore.textContent = "0.0";
     if (photoType) photoType.textContent = "未识别类型";
     if (overallSummary) overallSummary.textContent = "";
-    if (scoreCalculation) scoreCalculation.textContent = "";
     if (encouragementText) encouragementText.textContent = "";
     if (modelUsedNote) modelUsedNote.textContent = "";
     setHidden(fallbackNotice, true);
@@ -1339,6 +1338,7 @@ function resetAnalysisState() {
     saveCardDesc.textContent = "可以将结果保存为图片分享";
 
     document.getElementById("summaryCard").classList.add("hidden");
+    document.getElementById("assessmentLayout").classList.add("hidden");
     document.getElementById("technicalCard").classList.add("hidden");
     document.getElementById("scoreGrid").classList.add("hidden");
     document.getElementById("analysisContainer").classList.add("hidden");
@@ -1380,25 +1380,14 @@ function animateRing(score) {
 
 function renderTechnical(result) {
     const technical = result.technical;
-    const labels = {
-        none: "未见表达障碍",
-        slight: "轻微影响",
-        moderate: "中等影响",
-        severe: "明显影响",
-        uncertain: "无法可靠判断"
-    };
-    document.getElementById("technicalStatus").textContent = labels[technical.level];
-    document.getElementById("technicalObservation").textContent = technical.observation;
-    const impact = document.getElementById("technicalImpact");
-    impact.textContent = technical.impact;
-    impact.classList.toggle("hidden", !technical.impact);
-    const suggestion = document.getElementById("technicalSuggestion");
-    suggestion.textContent = technical.suggestion ? `建议：${technical.suggestion}` : "";
-    suggestion.classList.toggle("hidden", !technical.suggestion);
+    const status = document.getElementById("technicalStatus");
+    status.textContent = technical.level === "none" ? "未见技术缺陷"
+        : technical.level === "uncertain" ? "无法可靠判断"
+            : technical.observation;
     const deduction = document.getElementById("technicalDeduction");
     deduction.textContent = technical.deduction > 0
-        ? `综合分技术扣分：−${technical.deduction.toFixed(1)}`
-        : "综合分技术扣分：0";
+        ? `技术扣分 −${technical.deduction.toFixed(1)}`
+        : "技术扣分 0";
     document.getElementById("technicalCard").classList.remove("hidden");
 }
 
@@ -1429,14 +1418,13 @@ function renderResultProfessional(result) {
 
     const overallScore = result.scores.overall;
     document.getElementById("overallScore").textContent = overallScore.toFixed(1);
-    document.getElementById("scoreCalculation").textContent =
-        `模型综合判断 ${result.scores.overallBase.toFixed(1)} − 技术扣分 ${result.technical.deduction.toFixed(1)} = ${overallScore.toFixed(1)}`;
     animateRing(overallScore);
 
     // Hide beginner-only section
     document.getElementById("praiseCard").classList.add("hidden");
 
     // Show professional sections
+    document.getElementById("assessmentLayout").classList.remove("hidden");
     document.getElementById("scoreGrid").classList.remove("hidden");
     document.getElementById("analysisContainer").classList.remove("hidden");
     renderTechnical(result);
@@ -1445,13 +1433,12 @@ function renderResultProfessional(result) {
     const scoreGrid = document.getElementById("scoreGrid");
     scoreGrid.innerHTML = "";
 
-    const scoreOrder = ["composition", "lighting", "color", "storytelling", "overall"];
+    const scoreOrder = ["composition", "lighting", "color", "storytelling"];
     const scoreMap = {
         composition: "构图",
         lighting: "光影",
         color: "色彩",
-        storytelling: "叙事",
-        overall: "综合"
+        storytelling: "叙事"
     };
 
     scoreOrder.forEach(key => {
@@ -1536,6 +1523,7 @@ function renderResultBeginner(result) {
     document.getElementById("summaryCard").classList.add("hidden");
     document.getElementById("scoreGrid").classList.add("hidden");
     document.getElementById("analysisContainer").classList.add("hidden");
+    document.getElementById("assessmentLayout").classList.add("hidden");
     document.getElementById("technicalCard").classList.add("hidden");
 
     // Show beginner sections
@@ -1696,7 +1684,7 @@ saveImageBtn.addEventListener("click", async () => {
         }
 
         if (currentMode === "professional") {
-            const ids = ["summaryCard", "technicalCard", "scoreGrid", "analysisContainer"];
+            const ids = ["summaryCard", "assessmentLayout", "analysisContainer"];
             ids.forEach(id => {
                 const original = document.getElementById(id);
                 if (!original) return;
@@ -1706,6 +1694,14 @@ saveImageBtn.addEventListener("click", async () => {
                 clone.style.opacity = "1";
                 clone.style.background = exportCardBg;
                 clone.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)";
+
+                if (id === "assessmentLayout") {
+                    clone.style.background = "transparent";
+                    clone.style.boxShadow = "none";
+                    clone.style.display = "grid";
+                    clone.style.gridTemplateColumns = "minmax(0, 1fr) minmax(0, 2fr)";
+                    clone.querySelector("#scoreGrid").style.gridTemplateColumns = "repeat(2, minmax(0, 1fr))";
+                }
 
                 if (id === "summaryCard") {
                     clone.style.borderRadius = "16px";

@@ -1081,60 +1081,47 @@ select option {
     margin-top: 12px;
 }
 
-.score-calculation {
-    margin-top: 12px;
-    color: var(--text-secondary);
-    font-size: 13px;
-    line-height: 1.5;
+.assessment-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    gap: 16px;
+    margin-bottom: 20px;
 }
 
 .technical-card {
     border-left: 4px solid var(--accent);
+    margin-bottom: 0;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
 }
 
 .technical-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
     margin-bottom: 14px;
 }
 
-.technical-eyebrow {
-    color: var(--accent);
-    font-size: 12px;
-    font-weight: 700;
-}
-
 .technical-header h2 {
-    margin-top: 4px;
-    font-size: 18px;
-}
-
-.technical-status {
-    flex-shrink: 0;
-    padding: 5px 10px;
-    border-radius: 100px;
-    background: var(--accent-light);
-    color: var(--accent);
-    font-size: 12px;
-    font-weight: 700;
-}
-
-.technical-card p {
-    margin-top: 8px;
-    line-height: 1.6;
     color: var(--text-secondary);
     font-size: 14px;
+    font-weight: 600;
+}
+
+.technical-result {
+    margin-top: auto;
+    max-height: 2.8em;
+    overflow-y: auto;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
 }
 
 .technical-card .technical-deduction {
+    margin-top: auto;
+    padding-top: 16px;
     color: var(--text);
     font-weight: 700;
-}
-
-.technical-card .technical-note {
-    font-size: 12px;
+    font-size: 14px;
 }
 
 .tag {
@@ -1212,16 +1199,11 @@ select option {
 /* Score Grid (Professional) */
 .score-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(220px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
-    margin-bottom: 20px;
 }
 
 @media (max-width: 980px) {
-    .score-grid {
-        grid-template-columns: repeat(2, minmax(200px, 1fr));
-    }
-
     .input-column {
         position: static;
         top: auto;
@@ -1229,8 +1211,12 @@ select option {
 }
 
 @media (max-width: 640px) {
-    .score-grid {
+    .assessment-layout {
         grid-template-columns: 1fr;
+    }
+
+    .score-item {
+        padding: 14px;
     }
 
     .input-column {

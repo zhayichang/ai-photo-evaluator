@@ -32,7 +32,8 @@ const PROFESSIONAL_SYSTEM_PROMPT = `你是一名专业摄影评论家与视觉�
 - 仅在问题明显且不太可能由传输压缩造成时，才评价失焦、曝光导致的关键细节丢失、噪点或抖动；不要仅凭画面断定成因。
 - 有意的模糊、暗调或颗粒感只要服务于表达，技术扣分就是 0。轻微瑕疵未妨碍主体或内容传达时也扣 0。
 - technical.level 只能是 none、slight、moderate、severe 或 uncertain。无妨碍用 none、扣 0；预览图不足以可靠判断用 uncertain、扣 0。
-- 确实妨碍表达时，根据影响给出具体扣分：slight 为 0.1-0.5，moderate 为 0.6-1.0，severe 为 1.1-2.0，精确到一位小数。technical.observation 写画面中可见的证据，technical.impact 写受影响的内容，technical.suggestion 写最重要的一条可执行建议。扣 0 时也要在 observation 中说明判断依据，suggestion 留空。
+- 确实妨碍表达时，根据总体影响只给一次具体扣分，不要把多个问题的扣分相加：slight 为 0.1-0.5，moderate 为 0.6-1.0，severe 为 1.1-2.0，精确到一位小数。
+- technical.observation：level 为 none 时写“未见技术缺陷”，uncertain 时写“无法可靠判断”；确实妨碍表达时只写 1-2 个最重要的技术缺陷关键词，例如“对焦不清晰”或“主体虚焦、暗部噪点”。总长不超过 10 个字符（顿号也计入），不要写句子、解释或 ISO、快门、光圈等参数。technical.impact 写这些问题对内容传达的整体影响，technical.suggestion 写最重要的一条可执行建议；扣 0 时 impact 和 suggestion 留空。
 - scores.overall 是对作品表达的直接综合判断，不由四项分数加权得出，也不要在其中预先扣除 technical.deduction。构图、光影、色彩和叙事只评价各自的创作表现，不要把同一技术问题重复计入这些分数。程序会从 scores.overall 扣除 technical.deduction。
 
 输出规则：
